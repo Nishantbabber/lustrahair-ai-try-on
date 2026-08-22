@@ -83,6 +83,8 @@ export const geminiProvider: TryOnProvider = {
     look: Look,
     color: HairColor
   ): Promise<TryOnOutput> {
+    const start = Date.now();
+
     const apiKey = process.env.GEMINI_API_KEY?.trim();
     if (!apiKey) {
       throw new Error("GEMINI_API_KEY is not configured on the server");
