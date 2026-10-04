@@ -112,10 +112,10 @@ export function recordConsentEvent(tenantId: string): ConsentAuditEvent {
 
   const data = loadUsageFile();
   const existing = data[CONSENT_EVENTS_KEY];
-  const events: ConsentAuditEvent[] = Array.isArray(existing) ? existing : [];
-  events.push(event);
-  data[CONSENT_EVENTS_KEY] = events;
-  memoryUsageStore[CONSENT_EVENTS_KEY] = events;
+  // // const events: [] = Array.isArray(existing) ? existing : [];
+  // // events.push(event);
+  // data[CONSENT_EVENTS_KEY] = events;
+  // memoryUsageStore[CONSENT_EVENTS_KEY] = events;
   persistUsageFile(data);
 
   console.log(
