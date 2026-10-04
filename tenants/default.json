@@ -1,0 +1,142 @@
+{
+  "id": "default",
+  "brandName": "LustraHair",
+  "logo": {
+    "textFallback": "LustraHair",
+    "path": ""
+  },
+  "theme": {
+    "primaryColor": "#c4a574",
+    "primaryColorLight": "#e8dcc8",
+    "backgroundColor": "#faf8f5",
+    "backgroundColorDark": "#f3efe8",
+    "textColor": "#1a1816",
+    "surfaceColor": "#ffffff",
+    "font": "\"Georgia\", \"Times New Roman\", serif",
+    "borderRadius": "8px",
+    "layout": "luxury"
+  },
+  "copy": {
+    "headline": "See your next look before you buy.",
+    "subheadline": "Upload a photo and discover how LustraHair premium styles look on you with AI-powered virtual try-on.",
+    "ctaText": "Try It Now",
+    "consentText": "I consent to processing my photo for an ephemeral virtual try-on preview. Photos are processed in memory and not stored.",
+    "consentCheckboxText": "I consent to my photo being processed by AI to generate this preview. My photo is processed in memory, is not stored on our servers, and is not used by us to train any model.",
+    "footerText": "Premium human hair, personalized for you.",
+    "tryOnHeadline": "Let's start with you.",
+    "resultHeadline": "Meet your new look."
+  },
+  "currency": {
+    "symbol": "$",
+    "code": "USD",
+    "locale": "en-US"
+  },
+  "shades": [
+    { "id": "natural-black", "name": "Natural Black", "hex": "#1a1410" },
+    { "id": "espresso", "name": "Espresso", "hex": "#3d2314" },
+    { "id": "chestnut", "name": "Chestnut", "hex": "#6b3a2a" },
+    { "id": "honey-blonde", "name": "Honey Blonde", "hex": "#c9a66b" }
+  ],
+  "featureFlags": {
+    "emailCapture": true,
+    "shareButton": true
+  },
+  "monthlyTryOnLimit": 500,
+  "limits": {
+    "perIpPerHour": 5
+  },
+  "styles": [
+    {
+      "id": "signature-waves",
+      "name": "Signature Waves",
+      "category": "Long · Wavy",
+      "length": "22\"",
+      "description": "Soft, effortless waves with natural movement.",
+      "referenceImage": "/images/looks/signature-waves.jpg",
+      "previewImage": "/images/looks/signature-waves.jpg",
+      "demoResultImage": "/images/demo-results/signature-waves.jpg",
+      "aiInstruction": "Transform the hair into long 22-inch soft loose waves with natural movement and body. The waves should be effortless and flowing, with subtle volume throughout.",
+      "stylistRecommendation": "This look adds soft movement and volume while keeping the overall silhouette natural. Perfect for everyday elegance.",
+      "productId": "product-signature-waves",
+      "productUrlTemplate": "https://lustrahair.com/products/signature-waves?shade={shade}&utm_source=hair_tryon&utm_medium=ai_tool&utm_campaign={tenantId}_tryon",
+      "price": 249
+    },
+    {
+      "id": "silk-straight",
+      "name": "Silk Straight",
+      "category": "Long · Straight",
+      "length": "24\"",
+      "description": "Sleek, polished length with a smooth finish.",
+      "referenceImage": "/images/looks/silk-straight.jpg",
+      "previewImage": "/images/looks/silk-straight.jpg",
+      "demoResultImage": "/images/demo-results/silk-straight.jpg",
+      "aiInstruction": "Transform the hair into long 24-inch sleek straight hair with a polished, smooth finish. The hair should fall smoothly with a glossy, salon-quality appearance.",
+      "stylistRecommendation": "Silk straight creates a refined, polished look that frames the face beautifully. Ideal for a sophisticated, timeless style.",
+      "productId": "product-silk-straight",
+      "productUrlTemplate": "https://lustrahair.com/products/silk-straight?shade={shade}&utm_source=hair_tryon&utm_medium=ai_tool&utm_campaign={tenantId}_tryon",
+      "price": 269
+    },
+    {
+      "id": "soft-layers",
+      "name": "Soft Layers",
+      "category": "Layered",
+      "length": "20\"",
+      "description": "Face-framing layers for natural-looking volume.",
+      "referenceImage": "/images/looks/soft-layers.jpg",
+      "previewImage": "/images/looks/soft-layers.jpg",
+      "demoResultImage": "/images/demo-results/soft-layers.jpg",
+      "aiInstruction": "Transform the hair into 20-inch layered cut with face-framing layers and natural-looking volume. The layers should be soft and blended for a lived-in feel.",
+      "stylistRecommendation": "Soft layers add dimension and movement without overwhelming your features. A versatile choice that works for most face shapes.",
+      "productId": "product-soft-layers",
+      "productUrlTemplate": "https://lustrahair.com/products/soft-layers?shade={shade}&utm_source=hair_tryon&utm_medium=ai_tool&utm_campaign={tenantId}_tryon",
+      "price": 229
+    },
+    {
+      "id": "modern-bob",
+      "name": "Modern Bob",
+      "category": "Short · Straight",
+      "length": "12\"",
+      "description": "A clean, contemporary bob with effortless shape.",
+      "referenceImage": "/images/looks/modern-bob.jpg",
+      "previewImage": "/images/looks/modern-bob.jpg",
+      "demoResultImage": "/images/demo-results/modern-bob.jpg",
+      "aiInstruction": "Transform the hair into a clean 12-inch contemporary bob with a blunt or slightly angled cut. The bob should have effortless shape and a modern, polished finish.",
+      "stylistRecommendation": "The modern bob is bold yet refined. It draws attention to your jawline and neck, creating a striking, confident silhouette.",
+      "productId": "product-modern-bob",
+      "productUrlTemplate": "https://lustrahair.com/products/modern-bob?shade={shade}&utm_source=hair_tryon&utm_medium=ai_tool&utm_campaign={tenantId}_tryon",
+      "price": 199
+    },
+    {
+      "id": "defined-curls",
+      "name": "Defined Curls",
+      "category": "Long · Curly",
+      "length": "20\"",
+      "description": "Full, defined curls with soft natural volume.",
+      "referenceImage": "/images/looks/defined-curls.jpg",
+      "previewImage": "/images/looks/defined-curls.jpg",
+      "demoResultImage": "/images/demo-results/defined-curls.jpg",
+      "aiInstruction": "Transform the hair into long 20-inch defined curls with soft natural volume. The curls should be bouncy, well-formed, and have realistic texture and shine.",
+      "stylistRecommendation": "Defined curls bring warmth and personality to your look. This style celebrates natural texture with premium definition and bounce.",
+      "productId": "product-defined-curls",
+      "productUrlTemplate": "https://lustrahair.com/products/defined-curls?shade={shade}&utm_source=hair_tryon&utm_medium=ai_tool&utm_campaign={tenantId}_tryon",
+      "price": 259
+    },
+    {
+      "id": "rich-brunette",
+      "name": "Rich Brunette",
+      "category": "Color",
+      "length": "22\"",
+      "description": "A dimensional espresso-brunette finish.",
+      "referenceImage": "/images/looks/rich-brunette.jpg",
+      "previewImage": "/images/looks/rich-brunette.jpg",
+      "demoResultImage": "/images/demo-results/rich-brunette.jpg",
+      "aiInstruction": "Transform the hair color to a rich dimensional espresso-brunette with subtle highlights and lowlights. Maintain the existing hairstyle but enhance with a luxurious multi-tonal brunette finish.",
+      "stylistRecommendation": "Rich brunette adds depth and dimension to any style. The espresso tones create a warm, sophisticated look that complements most skin tones.",
+      "productId": "product-rich-brunette",
+      "productUrlTemplate": "https://lustrahair.com/products/rich-brunette?shade={shade}&utm_source=hair_tryon&utm_medium=ai_tool&utm_campaign={tenantId}_tryon",
+      "price": 239,
+      "colorOnly": true,
+      "shadeIds": ["espresso"]
+    }
+  ]
+}

@@ -5,10 +5,13 @@ import { Upload, X, ImageIcon } from "lucide-react";
 import { ACCEPTED_IMAGE_TYPES, MAX_FILE_SIZE } from "@/types/tryon";
 import { cn } from "@/lib/utils";
 import { Button } from "./Button";
+import { useTenant } from "@/lib/tenant/context";
 
 interface PhotoUploadProps {
   image: string | null;
   fileName: string | null;
+  consentGiven: boolean;
+  onConsentChange: (given: boolean) => void;
   onImageSelect: (dataUrl: string, fileName: string) => void;
   onClear: () => void;
   onContinue: () => void;
@@ -23,10 +26,16 @@ function formatFileSize(bytes: number): string {
 export function PhotoUpload({
   image,
   fileName,
+  consentGiven,
+  onConsentChange,
   onImageSelect,
   onClear,
   onContinue,
 }: PhotoUploadProps) {
+  const { tenant } = useTenant();
+  const consentLabel =
+    tenant.copy.consentCheckboxText ||
+    "I consent to my photo being processed by AI to generate this preview. My photo is processed in memory, is not stored on our servers, and is not used by us to train any model.";
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -111,7 +120,7 @@ export function PhotoUpload({
     <div className="animate-fade-in mx-auto max-w-xl">
       <div className="mb-8 text-center">
         <h1 className="font-display mb-3 text-3xl text-charcoal sm:text-4xl">
-          Let&apos;s start with you.
+          {tenant.copy.tryOnHeadline || "Let's start with you."}
         </h1>
         <p className="text-charcoal-muted">
           Upload a clear photo and we&apos;ll create a personalized preview.
@@ -219,15 +228,28 @@ export function PhotoUpload({
         </ul>
       </div>
 
-      <p className="mt-4 text-center text-xs text-charcoal-muted">
-        Your photo is used only to create your preview.
-      </p>
+      <label
+        htmlFor="photo-processing-consent"
+        className="mt-6 flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface p-4 text-left sm:p-5"
+      >
+        <input
+          id="photo-processing-consent"
+          type="checkbox"
+          checked={consentGiven}
+          onChange={(e) => onConsentChange(e.target.checked)}
+          className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer"
+          style={{ accentColor: "var(--color-champagne)" }}
+        />
+        <span className="text-sm leading-relaxed text-charcoal">
+          {consentLabel}
+        </span>
+      </label>
 
       <div className="mt-8">
         <Button
           fullWidth
           size="lg"
-          disabled={!image}
+          disabled={!image || !consentGiven}
           onClick={onContinue}
         >
           Choose Your Look

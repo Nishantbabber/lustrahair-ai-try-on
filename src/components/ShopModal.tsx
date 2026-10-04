@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { X } from "lucide-react";
+import { X, ExternalLink } from "lucide-react";
 import Image from "next/image";
 import type { Product } from "@/types/tryon";
 import { Button } from "./Button";
+import { useTenant } from "@/lib/tenant/context";
 
 interface ShopModalProps {
   product: Product;
@@ -15,6 +16,9 @@ interface ShopModalProps {
 
 export function ShopModal({ product, selectedShade, isOpen, onClose }: ShopModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const { tenant, getShopUrl } = useTenant();
+
+  const shopUrl = getShopUrl(product.lookId, selectedShade);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -68,16 +72,21 @@ export function ShopModal({ product, selectedShade, isOpen, onClose }: ShopModal
           </p>
 
           <p className="mt-4 text-sm text-charcoal-muted">
-            This is a preview experience. In production, this would connect to
-            your cart and checkout flow.
+            Ready to make it yours? Continue directly to {tenant.brandName}&apos;s checkout with your selected style and shade pre-selected.
           </p>
 
           <div className="mt-6 flex flex-col gap-2">
-            <Button fullWidth onClick={onClose}>
-              Continue Exploring
-            </Button>
+            <a
+              href={shopUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors bg-charcoal text-ivory hover:bg-charcoal/90 px-6 py-3 text-base w-full"
+            >
+              <span>Shop on {tenant.brandName}</span>
+              <ExternalLink className="h-4 w-4" />
+            </a>
             <Button variant="secondary" fullWidth onClick={onClose}>
-              Close
+              Continue Browsing
             </Button>
           </div>
         </div>

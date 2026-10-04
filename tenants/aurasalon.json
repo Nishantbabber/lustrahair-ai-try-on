@@ -1,0 +1,96 @@
+{
+  "id": "aurasalon",
+  "brandName": "Aura Salon & Studio",
+  "logo": {
+    "textFallback": "Aura Salon",
+    "path": ""
+  },
+  "theme": {
+    "primaryColor": "#0f5132",
+    "primaryColorLight": "#d1e7dd",
+    "backgroundColor": "#f8f9fa",
+    "backgroundColorDark": "#eef1f4",
+    "textColor": "#19201d",
+    "surfaceColor": "#ffffff",
+    "font": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+    "borderRadius": "12px",
+    "layout": "modern"
+  },
+  "copy": {
+    "headline": "Transform your look before your appointment.",
+    "subheadline": "Experience Aura's signature salon cuts and color artistry on your own photo before you sit in the chair.",
+    "ctaText": "Preview Your Aura",
+    "consentText": "I consent to uploading my photo for real-time consultation preview. Photos are processed temporarily and discarded after this session.",
+    "consentCheckboxText": "I consent to my photo being processed by AI to generate this preview. My photo is processed in memory, is not stored on our servers, and is not used by us to train any model.",
+    "footerText": "Aura Studio — Modern Hair Artistry & Extensions.",
+    "tryOnHeadline": "Upload your portrait",
+    "resultHeadline": "Your personalized Aura transformation"
+  },
+  "currency": {
+    "symbol": "€",
+    "code": "EUR",
+    "locale": "de-DE"
+  },
+  "shades": [
+    { "id": "soft-espresso", "name": "Soft Espresso", "hex": "#3d2314" },
+    { "id": "warm-copper", "name": "Warm Copper", "hex": "#a84b32" },
+    { "id": "ivory-blonde", "name": "Ivory Blonde", "hex": "#e4d2b0" }
+  ],
+  "featureFlags": {
+    "emailCapture": true,
+    "shareButton": false
+  },
+  "monthlyTryOnLimit": 250,
+  "limits": {
+    "perIpPerHour": 5
+  },
+  "styles": [
+    {
+      "id": "signature-waves",
+      "name": "Aura Hollywood Waves",
+      "category": "Signature · Wavy",
+      "length": "22\"",
+      "description": "Lustrous salon-crafted cascading waves.",
+      "referenceImage": "/images/looks/signature-waves.jpg",
+      "previewImage": "/images/looks/signature-waves.jpg",
+      "demoResultImage": "/images/demo-results/signature-waves.jpg",
+      "aiInstruction": "Transform the hair into long 22-inch soft loose waves with natural movement and body. The waves should be effortless and flowing, with subtle volume throughout.",
+      "stylistRecommendation": "Our signature wave blowout adds instant red-carpet glamour and body to your profile.",
+      "productId": "aura-hollywood-waves",
+      "productUrlTemplate": "https://aurasalon.example.com/book?service=hollywood-waves&shade={shade}&utm_source=hair_tryon&utm_medium=ai_tool&utm_campaign={tenantId}_tryon",
+      "price": 185
+    },
+    {
+      "id": "modern-bob",
+      "name": "Chic Parisian Bob",
+      "category": "Precision Cut",
+      "length": "12\"",
+      "description": "Sharp, textured chin-length contemporary bob.",
+      "referenceImage": "/images/looks/modern-bob.jpg",
+      "previewImage": "/images/looks/modern-bob.jpg",
+      "demoResultImage": "/images/demo-results/modern-bob.jpg",
+      "aiInstruction": "Transform the hair into a clean 12-inch contemporary bob with a blunt or slightly angled cut. The bob should have effortless shape and a modern, polished finish.",
+      "stylistRecommendation": "A bold, confidence-boosting cut that sculpts your cheekbones and neckline.",
+      "productId": "aura-parisian-bob",
+      "productUrlTemplate": "https://aurasalon.example.com/book?service=parisian-bob&shade={shade}&utm_source=hair_tryon&utm_medium=ai_tool&utm_campaign={tenantId}_tryon",
+      "price": 145
+    },
+    {
+      "id": "rich-brunette",
+      "name": "Velvet Brunette Gloss",
+      "category": "Color Artistry",
+      "length": "22\"",
+      "description": "High-shine multi-dimensional gloss treatment.",
+      "referenceImage": "/images/looks/rich-brunette.jpg",
+      "previewImage": "/images/looks/rich-brunette.jpg",
+      "demoResultImage": "/images/demo-results/rich-brunette.jpg",
+      "aiInstruction": "Transform the hair color to a rich dimensional espresso-brunette with subtle highlights and lowlights. Maintain the existing hairstyle but enhance with a luxurious multi-tonal brunette finish.",
+      "stylistRecommendation": "Infuses deep espresso undertones with glass-like light reflection.",
+      "productId": "aura-velvet-brunette",
+      "productUrlTemplate": "https://aurasalon.example.com/book?service=velvet-brunette&shade={shade}&utm_source=hair_tryon&utm_medium=ai_tool&utm_campaign={tenantId}_tryon",
+      "price": 165,
+      "colorOnly": true,
+      "shadeIds": ["soft-espresso"]
+    }
+  ]
+}

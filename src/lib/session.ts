@@ -14,6 +14,7 @@ const DEFAULT_SESSION: TryOnSession = {
   resultImage: null,
   saved: false,
   provider: null,
+  photoConsentGiven: false,
 };
 
 export function getSession(): TryOnSession {

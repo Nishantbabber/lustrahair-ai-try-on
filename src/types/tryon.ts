@@ -1,11 +1,7 @@
-export type HairColorId =
-  | "natural-black"
-  | "espresso"
-  | "chestnut"
-  | "honey-blonde";
+export type HairColorId = string;
 
 export interface HairColor {
-  id: HairColorId;
+  id: string;
   name: string;
   hex: string;
 }
@@ -21,6 +17,7 @@ export interface Look {
   aiInstruction: string;
   stylistRecommendation: string;
   productId: string;
+  colorOnly?: boolean;
 }
 
 export interface Product {
@@ -61,17 +58,11 @@ export interface TryOnSession {
   resultImage: string | null;
   saved: boolean;
   provider: string | null;
+  photoConsentGiven?: boolean;
 }
 
-export const HAIR_COLORS: HairColor[] = [
-  { id: "natural-black", name: "Natural Black", hex: "#1a1410" },
-  { id: "espresso", name: "Espresso", hex: "#3d2314" },
-  { id: "chestnut", name: "Chestnut", hex: "#6b3a2a" },
-  { id: "honey-blonde", name: "Honey Blonde", hex: "#c9a66b" },
-];
-
 export const DEFAULT_LOOK_ID = "signature-waves";
-export const DEFAULT_COLOR_ID: HairColorId = "espresso";
+export const DEFAULT_COLOR_ID: HairColorId = "";
 
 export const SESSION_STORAGE_KEY = "lustra-hair-session";
 

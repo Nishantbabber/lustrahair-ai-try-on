@@ -1,8 +1,13 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowDown, Sparkles, Eye, GitCompare, Heart } from "lucide-react";
+import { useTenant } from "@/lib/tenant/context";
 
 export default function HomePage() {
+  const { tenant } = useTenant();
+
   return (
     <>
       {/* Hero */}
@@ -10,21 +15,21 @@ export default function HomePage() {
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:py-24">
           <div className="animate-fade-in">
             <p className="mb-4 text-sm uppercase tracking-[0.2em] text-champagne">
-              Virtual Try-On
+              Virtual Try-On · {tenant.brandName}
             </p>
             <h1 className="font-display mb-6 text-4xl leading-tight text-charcoal sm:text-5xl lg:text-[3.25rem]">
-              See your next look before you buy.
+              {tenant.copy.headline}
             </h1>
             <p className="mb-8 max-w-md text-lg text-charcoal-muted">
-              Upload a photo and discover how LustraHair styles could look on
-              you with AI-powered virtual try-on.
+              {tenant.copy.subheadline ||
+                `Upload a photo and discover how ${tenant.brandName} styles look on you with AI-powered virtual try-on.`}
             </p>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
                 href="/try-on"
                 className="inline-flex items-center justify-center rounded-md bg-charcoal px-6 py-3 text-base font-medium text-ivory transition-colors hover:bg-charcoal/90"
               >
-                Try It Now
+                {tenant.copy.ctaText}
               </Link>
               <span className="text-sm text-charcoal-muted">
                 No account required
@@ -137,7 +142,7 @@ export default function HomePage() {
               href="/try-on"
               className="inline-flex items-center justify-center rounded-md border border-border-strong bg-surface px-6 py-3 text-sm font-medium text-charcoal transition-colors hover:bg-ivory-dark"
             >
-              Start Your Try-On
+              {tenant.copy.ctaText}
             </Link>
           </div>
         </div>
@@ -146,9 +151,9 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="border-t border-border py-8">
         <div className="mx-auto max-w-6xl px-4 text-center sm:px-6">
-          <p className="font-display text-lg text-charcoal">LustraHair</p>
+          <p className="font-display text-lg text-charcoal">{tenant.brandName}</p>
           <p className="mt-1 text-sm text-charcoal-muted">
-            Premium human hair, personalized for you.
+            {tenant.copy.footerText || "Premium personalized virtual try-on experience."}
           </p>
         </div>
       </footer>

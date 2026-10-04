@@ -20,10 +20,9 @@ export function buildTryOnPrompt(look: Look, color: HairColor): string {
     LOOK_STYLE_DESCRIPTIONS[look.id] ||
     `${look.name} (${look.category}, ${look.length}): ${look.description} ${look.aiInstruction}`;
 
-  const colorDescription =
-    look.id === "rich-brunette"
-      ? `Dimensional Rich Brunette / Espresso with multi-tonal highlights and lowlights. (Requested shade tone: ${color.name} ${color.hex})`
-      : `${color.name} (Hex code: ${color.hex}). Apply this hair color with realistic roots, natural tonal variation, and believable lighting reflections.`;
+  const colorDescription = look.colorOnly
+    ? `Use the color finish described in the hairstyle instructions (this is a color-only treatment). Do not apply a different shade from a picker.`
+    : `${color.name} (Hex code: ${color.hex}). Apply this hair color with realistic roots, natural tonal variation, and believable lighting reflections.`;
 
   return `Edit the provided photograph to create a realistic virtual hair try-on.
 

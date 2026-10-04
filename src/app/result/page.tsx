@@ -7,13 +7,16 @@ import { BeforeAfterSlider } from "@/components/BeforeAfterSlider";
 import { ProductCard } from "@/components/ProductCard";
 import { ShopModal } from "@/components/ShopModal";
 import { Button } from "@/components/Button";
-import { getLookById, getProductByLookId } from "@/data/looks";
-import { HAIR_COLORS } from "@/types/tryon";
+import { getLookById as getStaticLookById, getProductByLookId } from "@/data/looks";
+import { type Product, type Look } from "@/types/tryon";
 import { getSession, saveSession, hasValidResult } from "@/lib/session";
 import type { TryOnSession } from "@/types/tryon";
+import { useTenant } from "@/lib/tenant/context";
+import { formatTenantPrice, resolveShadesForStyle } from "@/lib/tenant/catalog";
 
 export default function ResultPage() {
   const router = useRouter();
+  const { tenant, getStyleById } = useTenant();
   const [session, setSession] = useState<TryOnSession | null>(null);
   const [shopOpen, setShopOpen] = useState(false);
   const [consultationSent, setConsultationSent] = useState(false);
@@ -27,10 +30,44 @@ export default function ResultPage() {
     }
   }, []);
 
-  const look = session ? getLookById(session.selectedLookId) : undefined;
-  const product = session ? getProductByLookId(session.selectedLookId) : undefined;
+  // Look resolution: check tenant catalog first, fallback to static catalog
+  const tenantStyle = session ? getStyleById(session.selectedLookId) : undefined;
+  const staticLook = session ? getStaticLookById(session.selectedLookId) : undefined;
+
+  const look: Look | undefined = tenantStyle
+    ? {
+        id: tenantStyle.id,
+        name: tenantStyle.name,
+        category: tenantStyle.category,
+        length: tenantStyle.length,
+        description: tenantStyle.description,
+        previewImage: tenantStyle.referenceImage || tenantStyle.previewImage || "",
+        demoResultImage: tenantStyle.demoResultImage,
+        aiInstruction: tenantStyle.aiInstruction,
+        stylistRecommendation: tenantStyle.stylistRecommendation,
+        productId: tenantStyle.productId,
+        colorOnly: tenantStyle.colorOnly,
+      }
+    : staticLook;
+
+  const product: Product | undefined = tenantStyle
+    ? {
+        id: tenantStyle.productId || `product-${tenantStyle.id}`,
+        name: `${tenant.brandName} ${tenantStyle.name}`,
+        description: tenantStyle.description || `${tenant.brandName} Signature Style`,
+        price: tenantStyle.price,
+        currency: "",
+        shades: resolveShadesForStyle(tenant, tenantStyle).map((s) => s.name),
+        image: tenantStyle.referenceImage || tenantStyle.previewImage || "",
+        lookId: tenantStyle.id,
+      }
+    : session
+    ? getProductByLookId(session.selectedLookId)
+    : undefined;
+
   const color = session
-    ? HAIR_COLORS.find((c) => c.id === session.selectedColorId)
+    ? resolveShadesForStyle(tenant, tenantStyle).find((c) => c.id === session.selectedColorId) ||
+      tenant.shades.find((c) => c.id === session.selectedColorId)
     : undefined;
 
   const handleSave = useCallback(() => {
@@ -64,10 +101,10 @@ export default function ResultPage() {
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-14">
       <div className="animate-fade-in mb-10 text-center">
         <h1 className="font-display mb-3 text-3xl text-charcoal sm:text-4xl">
-          Meet your new look.
+          {tenant.copy.resultHeadline || "Meet your new look."}
         </h1>
         <p className="text-charcoal-muted">
-          See how your selected LustraHair style could look on you.
+          See how your selected {tenant.brandName} style looks on you.
         </p>
       </div>
 
@@ -105,7 +142,7 @@ export default function ResultPage() {
       {/* Stylist section */}
       <div className="animate-fade-in mb-10 rounded-lg border border-border bg-surface p-6 shadow-soft">
         <p className="mb-2 text-xs uppercase tracking-wider text-champagne">
-          Lustra Stylist says
+          {tenant.brandName} Stylist says
         </p>
         <p className="font-display text-lg text-charcoal">
           &ldquo;{look.stylistRecommendation}&rdquo;
