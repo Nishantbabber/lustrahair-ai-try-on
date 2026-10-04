@@ -9,7 +9,7 @@ import path from "path";
 import { spawnSync } from "child_process";
 import { generateTryOn } from "../src/lib/ai/provider";
 import { getTenantConfig } from "../src/lib/tenant/loader";
-import { HAIR_COLORS, type HairColorId, type Look } from "../src/types/tryon";
+import { type HairColorId, type Look } from "../src/types/tryon";
 
 function loadDotEnvLocal() {
   const envPath = path.join(process.cwd(), ".env.local");
@@ -94,7 +94,7 @@ async function main() {
 
   const originalImage = fileToDataUrl(referencePath);
   const colorId: HairColorId = "espresso";
-  const color = HAIR_COLORS.find((c) => c.id === colorId)!;
+  const color = { id: colorId, name: "Espresso", hex: "#3B2A1A" };
   const looksDir = path.join(process.cwd(), "public/images/looks");
 
   const tenant = getTenantConfig("default");
