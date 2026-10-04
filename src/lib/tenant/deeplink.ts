@@ -21,7 +21,7 @@ export function buildShopUrl(template: string, params: DeepLinkParams): string {
   const encodedShade = encodeURIComponent(params.shade || "");
   const encodedTenantId = encodeURIComponent(params.tenantId);
 
-  let urlString = template
+  const urlString = template
     .replace(/{styleId}/g, encodedStyleId)
     .replace(/{styleName}/g, encodedStyleName)
     .replace(/{shade}/g, encodedShade)
