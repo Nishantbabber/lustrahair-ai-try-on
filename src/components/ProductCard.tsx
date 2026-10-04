@@ -4,6 +4,8 @@ import Image from "next/image";
 import type { Product } from "@/types/tryon";
 import { Button } from "./Button";
 import { cn } from "@/lib/utils";
+import { useTenant } from "@/lib/tenant/context";
+import { formatTenantPrice } from "@/lib/tenant/catalog";
 
 interface ProductCardProps {
   product: Product;
@@ -22,6 +24,8 @@ export function ProductCard({
   onConsultation,
   onSave,
 }: ProductCardProps) {
+  const { tenant } = useTenant();
+
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-soft">
       <div className="flex flex-col sm:flex-row">
@@ -44,8 +48,7 @@ export function ProductCard({
               {product.name}
             </h3>
             <p className="mt-2 text-2xl font-medium text-charcoal">
-              {product.currency}
-              {product.price.toLocaleString("en-IN")}
+              {formatTenantPrice(product.price, tenant.currency)}
             </p>
 
             <div className="mt-4">

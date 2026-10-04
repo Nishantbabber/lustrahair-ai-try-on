@@ -18,7 +18,7 @@
  * tenants/[id].json. No fallback brand copy or image paths live here.
  *
  * Image frame: STYLE_CARD_ASPECT_RATIO (4 / 5). Grid columns are owned by
- * the parent so 1–N styles reflow via auto-fill, not a fixed column count.
+ * the parent (2-up on small screens, 3-up from lg) so catalogs of any size reflow.
  */
 
 import Image from "next/image";

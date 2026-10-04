@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useMemo } from "react";
 import type { TenantConfig, TenantStyle } from "@/types/tenant";
-import { buildShopUrl, type DeepLinkParams } from "./deeplink";
+import { buildShopUrl } from "./deeplink";
 
 interface TenantContextValue {
   tenant: TenantConfig;

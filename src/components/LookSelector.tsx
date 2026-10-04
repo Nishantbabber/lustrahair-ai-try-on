@@ -47,7 +47,7 @@ export function LookSelector({
       </div>
 
       <div
-        className="mb-10 grid grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))] gap-3 sm:gap-4"
+        className="mb-10 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3"
         role="radiogroup"
         aria-label="Hairstyle options"
       >

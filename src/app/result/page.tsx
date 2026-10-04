@@ -12,7 +12,7 @@ import { type Product, type Look } from "@/types/tryon";
 import { getSession, saveSession, hasValidResult } from "@/lib/session";
 import type { TryOnSession } from "@/types/tryon";
 import { useTenant } from "@/lib/tenant/context";
-import { formatTenantPrice, resolveShadesForStyle } from "@/lib/tenant/catalog";
+import { resolveShadesForStyle } from "@/lib/tenant/catalog";
 
 export default function ResultPage() {
   const router = useRouter();
@@ -56,7 +56,7 @@ export default function ResultPage() {
         name: `${tenant.brandName} ${tenantStyle.name}`,
         description: tenantStyle.description || `${tenant.brandName} Signature Style`,
         price: tenantStyle.price,
-        currency: "",
+        currency: tenant.currency.symbol,
         shades: resolveShadesForStyle(tenant, tenantStyle).map((s) => s.name),
         image: tenantStyle.referenceImage || tenantStyle.previewImage || "",
         lookId: tenantStyle.id,

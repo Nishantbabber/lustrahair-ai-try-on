@@ -1,6 +1,12 @@
 /**
  * Rate limiter abstraction. Calling code depends only on this interface so an
  * in-memory sliding window can be swapped for Redis later without route changes.
+ *
+ * Production note: InMemorySlidingWindowRateLimiter is process-local. Vercel
+ * serverless isolates do not share memory, and cold starts reset the Map, so
+ * this limiter is correct for a single long-lived Node process (local `next
+ * dev` / `next start`) but is not a reliable hourly cap in production until a
+ * shared store (Upstash Redis / Vercel KV) implements RateLimiter.
  */
 export interface RateLimitResult {
   allowed: boolean;
@@ -28,6 +34,10 @@ export class InMemorySlidingWindowRateLimiter implements RateLimiter {
     const now = Date.now();
     const cutoff = now - windowMs;
     const timestamps = (this.hits.get(key) ?? []).filter((t) => t > cutoff);
+
+    if (timestamps.length === 0) {
+      this.hits.delete(key);
+    }
 
     if (timestamps.length >= limit) {
       const oldest = timestamps[0] ?? now;
@@ -64,17 +74,35 @@ export function setRateLimiter(limiter: RateLimiter): void {
   activeLimiter = limiter;
 }
 
+function firstForwardedHop(value: string | null): string | undefined {
+  const first = value?.split(",")[0]?.trim();
+  return first || undefined;
+}
+
+/**
+ * Client IP for per-visitor rate keys.
+ *
+ * Header order matters on Vercel: `x-forwarded-for` is the public client IP
+ * and is overwritten by the platform on a direct Vercel request, but an
+ * upstream reverse proxy can replace it with a single shared egress IP.
+ * `x-vercel-forwarded-for` and `x-real-ip` are the platform copies of that
+ * value and stay available when `x-forwarded-for` has been overwritten.
+ *
+ * Local `next dev` often has none of these; callers then share the "unknown"
+ * bucket, which is expected for a single developer machine.
+ */
 export function getClientIp(headers: Headers): string {
-  const forwarded = headers.get("x-forwarded-for");
-  if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first) return first;
-  }
+  const vercelForwarded = firstForwardedHop(headers.get("x-vercel-forwarded-for"));
+  if (vercelForwarded) return vercelForwarded;
 
-  const realIp =
-    headers.get("x-real-ip")?.trim() ||
-    headers.get("cf-connecting-ip")?.trim() ||
-    headers.get("x-vercel-forwarded-for")?.trim();
+  const realIp = headers.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
 
-  return realIp || "unknown";
+  const cfIp = headers.get("cf-connecting-ip")?.trim();
+  if (cfIp) return cfIp;
+
+  const forwarded = firstForwardedHop(headers.get("x-forwarded-for"));
+  if (forwarded) return forwarded;
+
+  return "unknown";
 }

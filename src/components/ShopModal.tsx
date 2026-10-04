@@ -6,6 +6,7 @@ import Image from "next/image";
 import type { Product } from "@/types/tryon";
 import { Button } from "./Button";
 import { useTenant } from "@/lib/tenant/context";
+import { formatTenantPrice } from "@/lib/tenant/catalog";
 
 interface ShopModalProps {
   product: Product;
@@ -64,8 +65,7 @@ export function ShopModal({ product, selectedShade, isOpen, onClose }: ShopModal
             {product.name}
           </h2>
           <p className="mt-2 text-xl font-medium text-charcoal">
-            {product.currency}
-            {product.price.toLocaleString("en-IN")}
+            {formatTenantPrice(product.price, tenant.currency)}
           </p>
           <p className="mt-1 text-sm text-charcoal-muted">
             Shade: <span className="font-medium text-charcoal">{selectedShade}</span>
