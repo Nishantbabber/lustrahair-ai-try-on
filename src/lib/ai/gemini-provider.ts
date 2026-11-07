@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import type { TryOnProvider, TryOnInput, TryOnOutput, Look, HairColor } from "@/types/tryon";
+import type { TryOnProvider, TryOnInput, TryOnOutput, Look, HairColor, TransformationMode } from "@/types/tryon";
 import { buildTryOnPrompt } from "./prompts";
 
 function extractBase64(imageData: string): { mimeType: string; data: string } {
@@ -78,11 +78,7 @@ function extractImageFromResponse(response: {
 export const geminiProvider: TryOnProvider = {
   name: "gemini",
 
-  async generateTryOn(
-    input: TryOnInput,
-    look: Look,
-    color: HairColor
-  ): Promise<TryOnOutput> {
+  async generateTryOn(input: TryOnInput, look?: Look | null, color?: HairColor | null, mode: TransformationMode = "both"): Promise<TryOnOutput> {
     const start = Date.now();
 
     const apiKey = process.env.GEMINI_API_KEY?.trim();
@@ -97,7 +93,7 @@ export const geminiProvider: TryOnProvider = {
     // If an OpenRouter key or model format (e.g. google/gemini-3.1-flash-image) is provided, delegate to OpenRouter
     if (apiKey.startsWith("sk-or-") || modelName.includes("/")) {
       const { openrouterProvider } = await import("./openrouter-provider");
-      return openrouterProvider.generateTryOn(input, look, color);
+      return openrouterProvider.generateTryOn(input, look, color, mode);
     }
 
     console.log(`[TRYON] Gemini request starting`);
@@ -113,7 +109,7 @@ export const geminiProvider: TryOnProvider = {
     });
 
     const { mimeType, data } = extractBase64(input.originalImage);
-    const prompt = buildTryOnPrompt(look, color);
+    const prompt = buildTryOnPrompt(look, color, mode);
 
     let result;
     try {

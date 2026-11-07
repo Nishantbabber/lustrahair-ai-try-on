@@ -18,7 +18,13 @@ export function isShadePickerHidden(style?: TenantStyle | null): boolean {
 }
 
 export function shadeToHairColor(shade: TenantShade): HairColor {
-  return { id: shade.id, name: shade.name, hex: shade.hex };
+  return {
+    id: shade.id,
+    name: shade.name,
+    hex: shade.hex,
+    category: shade.category,
+    aiInstruction: shade.aiInstruction,
+  };
 }
 
 export function formatTenantPrice(amount: number, currency: TenantCurrency): string {

@@ -1,5 +1,5 @@
 import type { TryOnProvider, TryOnInput, TryOnOutput } from "@/types/tryon";
-import type { Look, HairColor } from "@/types/tryon";
+import type { Look, HairColor, TransformationMode } from "@/types/tryon";
 import { readFile } from "fs/promises";
 import path from "path";
 
@@ -27,17 +27,22 @@ export const demoProvider: TryOnProvider = {
 
   async generateTryOn(
     _input: TryOnInput,
-    look: Look,
-    color: HairColor
+    look?: Look | null,
+    color?: HairColor | null,
+    mode: TransformationMode = "both"
   ): Promise<TryOnOutput> {
     void color;
+    void mode;
     const start = Date.now();
 
     for (const stageDelay of STAGE_DELAYS) {
       await delay(stageDelay);
     }
 
-    const resultImage = await loadDemoResultAsDataUrl(look.demoResultImage);
+    const demoImgPath =
+      look?.demoResultImage ||
+      (color ? "/images/demo-results/rich-brunette.jpg" : "/images/demo-results/signature-waves.jpg");
+    const resultImage = await loadDemoResultAsDataUrl(demoImgPath);
 
     return {
       resultImage,

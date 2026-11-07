@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateTryOn, resolveProviderName } from "@/lib/ai/provider";
 import { getLookById as getStaticLookById } from "@/data/looks";
-import { type HairColorId, type Look } from "@/types/tryon";
+import { type HairColorId, type Look, type TransformationMode } from "@/types/tryon";
 import { getTenantConfig } from "@/lib/tenant/loader";
 import { checkTenantQuota, incrementTenantUsage, recordConsentEvent, recordRateLimitHit } from "@/lib/tenant/usage";
 import {
@@ -17,6 +17,7 @@ export const dynamic = "force-dynamic";
 
 interface TryOnRequestBody {
   originalImage?: string;
+  mode?: TransformationMode;
   lookId?: string;
   colorId?: HairColorId;
   consentGiven?: boolean;
@@ -33,8 +34,14 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as TryOnRequestBody;
     const providerName = resolveProviderName();
 
+    // Mode resolution & validation: default to "both" for backward compatibility
+    const mode: TransformationMode =
+      body.mode === "style" || body.mode === "color" || body.mode === "both"
+        ? body.mode
+        : "both";
+
     console.log(
-      `[TRYON] Request received — tenant: ${tenantId} (${tenant.brandName}), lookId: ${body.lookId}, provider: ${providerName}`
+      `[TRYON] Request received — tenant: ${tenantId} (${tenant.brandName}), mode: ${mode}, lookId: ${body.lookId}, colorId: ${body.colorId}, provider: ${providerName}`
     );
 
     // 2. Per-IP rate limit (stacks independently of monthly tenant quota)
@@ -90,7 +97,7 @@ export async function POST(request: NextRequest) {
 
     recordConsentEvent(tenantId);
 
-    // 3. Pre-call Tenant Quota Check
+    // 4. Pre-call Tenant Quota Check
     const quota = checkTenantQuota(tenantId, tenant.monthlyTryOnLimit);
     if (!quota.allowed) {
       logServerError({
@@ -112,7 +119,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Input Validations
+    // 5. Image Validations
     if (!body.originalImage || typeof body.originalImage !== "string") {
       return NextResponse.json(
         {
@@ -135,68 +142,89 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!body.lookId || typeof body.lookId !== "string") {
-      return NextResponse.json(
-        { success: false, code: "SERVER_ERROR", error: "Please select a hairstyle to try on." },
-        { status: 400 }
-      );
+    // 6. Mode-specific input requirements
+    const requireStyle = mode === "style" || mode === "both";
+    const requireColor = mode === "color" || mode === "both";
+
+    // 6a. Hairstyle resolution & validation
+    let look: Look | null = null;
+    let tenantStyle: (typeof tenant.styles)[number] | undefined;
+
+    if (requireStyle) {
+      if (!body.lookId || typeof body.lookId !== "string" || !body.lookId.trim()) {
+        return NextResponse.json(
+          { success: false, code: "SERVER_ERROR", error: "Please select a hairstyle to try on." },
+          { status: 400 }
+        );
+      }
+
+      tenantStyle = tenant.styles.find((s) => s.id === body.lookId);
+      if (tenantStyle) {
+        look = {
+          id: tenantStyle.id,
+          name: tenantStyle.name,
+          category: tenantStyle.category,
+          length: tenantStyle.length,
+          description: tenantStyle.description,
+          previewImage: tenantStyle.referenceImage || tenantStyle.previewImage || "",
+          demoResultImage: tenantStyle.demoResultImage,
+          aiInstruction: tenantStyle.aiInstruction,
+          stylistRecommendation: tenantStyle.stylistRecommendation,
+          productId: tenantStyle.productId,
+          colorOnly: tenantStyle.colorOnly,
+        };
+      } else {
+        look = getStaticLookById(body.lookId) || null;
+      }
+
+      if (!look) {
+        return NextResponse.json(
+          { success: false, code: "SERVER_ERROR", error: "Selected hairstyle is not available in this catalogue." },
+          { status: 404 }
+        );
+      }
     }
 
-    // 4. Resolve Look from Tenant Catalog first, then static catalog
-    const tenantStyle = tenant.styles.find((s) => s.id === body.lookId);
-    let look: Look | undefined;
+    // 6b. Hair Colour resolution & validation
+    let color: ReturnType<typeof shadeToHairColor> | null = null;
 
-    if (tenantStyle) {
-      look = {
-        id: tenantStyle.id,
-        name: tenantStyle.name,
-        category: tenantStyle.category,
-        length: tenantStyle.length,
-        description: tenantStyle.description,
-        previewImage: tenantStyle.referenceImage || tenantStyle.previewImage || "",
-        demoResultImage: tenantStyle.demoResultImage,
-        aiInstruction: tenantStyle.aiInstruction,
-        stylistRecommendation: tenantStyle.stylistRecommendation,
-        productId: tenantStyle.productId,
-        colorOnly: tenantStyle.colorOnly,
-      };
-    } else {
-      look = getStaticLookById(body.lookId);
+    if (requireColor) {
+      // In color-only mode, colorId is strictly required
+      // In both mode, colorId is required unless style is colorOnly
+      if (!body.colorId || typeof body.colorId !== "string" || !body.colorId.trim()) {
+        return NextResponse.json(
+          { success: false, code: "SERVER_ERROR", error: "Please select a hair colour to try on." },
+          { status: 400 }
+        );
+      }
+
+      // If a hairstyle is also selected and restricts shades, validate against allowed shades
+      const allowedShades = tenantStyle ? resolveShadesForStyle(tenant, tenantStyle) : tenant.shades;
+      const matchedShade = allowedShades.find((s) => s.id === body.colorId);
+
+      if (!matchedShade) {
+        return NextResponse.json(
+          { success: false, code: "SERVER_ERROR", error: "Selected hair colour is not available." },
+          { status: 400 }
+        );
+      }
+
+      color = shadeToHairColor(matchedShade);
     }
 
-    if (!look) {
-      return NextResponse.json(
-        { success: false, code: "SERVER_ERROR", error: "Selected hairstyle is not available." },
-        { status: 404 }
-      );
-    }
-
-    const allowedShades = resolveShadesForStyle(tenant, tenantStyle);
-    let colorId = body.colorId ?? allowedShades[0]?.id ?? "";
-    if (tenantStyle?.colorOnly && allowedShades[0]) {
-      colorId = allowedShades[0].id;
-    }
-    const selectedShade = allowedShades.find((s) => s.id === colorId);
-    if (!selectedShade) {
-      return NextResponse.json(
-        { success: false, code: "SERVER_ERROR", error: "Selected shade is invalid." },
-        { status: 400 }
-      );
-    }
-
-    const color = shadeToHairColor(selectedShade);
-
-    // 5. Execute AI Generation with timeout and 1 automatic retry
+    // 7. Execute AI Generation with timeout and 1 automatic retry
     const result = await withTimeoutAndRetry(
       async () => {
         return generateTryOn(
           {
             originalImage: body.originalImage!,
-            lookId: body.lookId!,
-            colorId,
+            lookId: body.lookId,
+            colorId: body.colorId,
+            mode,
           },
-          look!,
-          color
+          look,
+          color,
+          mode
         );
       },
       {
@@ -207,7 +235,7 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    // 6. Increment monthly usage on successful generation
+    // 8. Increment monthly usage on successful generation
     const newUsage = incrementTenantUsage(tenantId);
     console.log(
       `[TRYON] Success — tenant: ${tenantId}, newUsage: ${newUsage}/${tenant.monthlyTryOnLimit}`
@@ -220,9 +248,10 @@ export async function POST(request: NextRequest) {
       processingTimeMs: result.processingTimeMs,
       configuredProvider: providerName,
       tenantId,
+      mode,
     });
   } catch (error) {
-    // 7. Structured error classification, server-side audit logging, and friendly response
+    // 9. Structured error classification, server-side audit logging, and friendly response
     const classified = classifyAIError(error);
 
     logServerError({

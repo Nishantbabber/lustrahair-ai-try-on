@@ -33,6 +33,9 @@ export interface TenantShade {
   id: string;
   name: string;
   hex: string;
+  category?: string;
+  aiInstruction?: string;
+  order?: number;
 }
 
 export interface TenantCurrency {

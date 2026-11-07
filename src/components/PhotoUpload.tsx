@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { Upload, X, ImageIcon } from "lucide-react";
+import { Upload, X, ImageIcon, Sparkles } from "lucide-react";
 import { ACCEPTED_IMAGE_TYPES, MAX_FILE_SIZE } from "@/types/tryon";
 import { cn } from "@/lib/utils";
 import { Button } from "./Button";
@@ -15,6 +15,9 @@ interface PhotoUploadProps {
   onImageSelect: (dataUrl: string, fileName: string) => void;
   onClear: () => void;
   onContinue: () => void;
+  continueLabel?: string;
+  preselectedStyleName?: string;
+  onClearPreselectedStyle?: () => void;
 }
 
 function formatFileSize(bytes: number): string {
@@ -31,11 +34,14 @@ export function PhotoUpload({
   onImageSelect,
   onClear,
   onContinue,
+  continueLabel,
+  preselectedStyleName,
+  onClearPreselectedStyle,
 }: PhotoUploadProps) {
   const { tenant } = useTenant();
   const consentLabel =
     tenant.copy.consentCheckboxText ||
-    "I consent to my photo being processed by AI to generate this preview. My photo is processed in memory, is not stored on our servers, and is not used by us to train any model.";
+    "I consent to my photo being sent to a third-party AI provider to generate this virtual hairstyle preview. I understand that the provider's own privacy and data policies may apply.";
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -126,6 +132,28 @@ export function PhotoUpload({
           Upload a clear photo and we&apos;ll create a personalized preview.
         </p>
       </div>
+
+      {preselectedStyleName && (
+        <div className="mb-6 flex items-center justify-between rounded-lg border border-champagne/40 bg-champagne-light/25 p-4 text-xs text-charcoal shadow-soft">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-champagne text-ivory">
+              <Sparkles className="h-3.5 w-3.5" />
+            </div>
+            <span>
+              Preselected look: <strong className="font-semibold text-charcoal">{preselectedStyleName}</strong>
+            </span>
+          </div>
+          {onClearPreselectedStyle && (
+            <button
+              type="button"
+              onClick={onClearPreselectedStyle}
+              className="text-[11px] font-medium text-charcoal-muted hover:text-charcoal underline underline-offset-2"
+            >
+              Change look
+            </button>
+          )}
+        </div>
+      )}
 
       {!image ? (
         <div
@@ -252,7 +280,7 @@ export function PhotoUpload({
           disabled={!image || !consentGiven}
           onClick={onContinue}
         >
-          Choose Your Look
+          {continueLabel || "Choose Your Look"}
         </Button>
       </div>
     </div>

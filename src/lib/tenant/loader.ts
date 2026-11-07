@@ -48,7 +48,7 @@ function applyTenantDefaults(config: TenantConfig): TenantConfig {
 }
 
 // Embedded fallback in case of filesystem issues
-import defaultTenantJson from "../../../tenants/default.json";
+import defaultTenantJson from "../../../tenants/default.json" with { type: "json" };
 
 const tenantCache = new Map<string, TenantConfig>();
 
@@ -117,7 +117,10 @@ export function getTenantConfig(tenantId: string = "default"): TenantConfig {
 
   try {
     if (fs.existsSync(targetFile)) {
-      const raw = fs.readFileSync(targetFile, "utf-8");
+      let raw = fs.readFileSync(targetFile, "utf-8");
+      if (raw.charCodeAt(0) === 0xFEFF) {
+        raw = raw.slice(1);
+      }
       const parsed = applyTenantDefaults(JSON.parse(raw) as TenantConfig);
       tenantCache.set(safeId, parsed);
       return parsed;
@@ -134,3 +137,5 @@ export function getTenantConfig(tenantId: string = "default"): TenantConfig {
   // Absolute fallback to imported json
   return applyTenantDefaults(defaultTenantJson as unknown as TenantConfig);
 }
+
+

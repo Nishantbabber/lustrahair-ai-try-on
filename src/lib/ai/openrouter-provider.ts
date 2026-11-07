@@ -1,4 +1,4 @@
-import type { TryOnProvider, TryOnInput, TryOnOutput, Look, HairColor } from "@/types/tryon";
+import type { TryOnProvider, TryOnInput, TryOnOutput, Look, HairColor, TransformationMode } from "@/types/tryon";
 import { buildTryOnPrompt } from "./prompts";
 
 interface OpenRouterResponse {
@@ -145,11 +145,7 @@ function extractImageFromOpenRouterResponse(response: OpenRouterResponse): strin
 export const openrouterProvider: TryOnProvider = {
   name: "openrouter",
 
-  async generateTryOn(
-    input: TryOnInput,
-    look: Look,
-    color: HairColor
-  ): Promise<TryOnOutput> {
+  async generateTryOn(input: TryOnInput, look?: Look | null, color?: HairColor | null, mode: TransformationMode = "both"): Promise<TryOnOutput> {
     const apiKey =
       process.env.OPENROUTER_API_KEY?.trim() ||
       process.env.GEMINI_API_KEY?.trim();
@@ -171,7 +167,7 @@ export const openrouterProvider: TryOnProvider = {
     console.log(`[TRYON] OpenRouter model = ${modelName}`);
     console.log(`[TRYON] OpenRouter max_tokens = ${maxTokens}`);
 
-    const prompt = buildTryOnPrompt(look, color);
+    const prompt = buildTryOnPrompt(look, color, mode);
     const start = Date.now();
 
     const requestBody = {

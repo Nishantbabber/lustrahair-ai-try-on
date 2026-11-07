@@ -7,13 +7,29 @@ export interface DeepLinkParams {
 }
 
 /**
+ * Validates that an external URL has a safe http or https protocol.
+ */
+export function isSafeHttpUrl(url: string | null | undefined): boolean {
+  if (!url || typeof url !== "string") return false;
+  const trimmed = url.trim();
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === "https:" || parsed.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Builds an outbound trackable shopping/booking URL for a style.
  * Resolves template variables like {styleId}, {shade}, and {tenantId},
  * and guarantees UTM parameters are present for conversion attribution.
+ *
+ * If template is empty or invalid, returns empty string rather than an invented destination.
  */
-export function buildShopUrl(template: string, params: DeepLinkParams): string {
-  if (!template) {
-    return "#";
+export function buildShopUrl(template: string | undefined | null, params: DeepLinkParams): string {
+  if (!template || !template.trim()) {
+    return "";
   }
 
   const encodedStyleId = encodeURIComponent(params.styleId);
@@ -28,7 +44,12 @@ export function buildShopUrl(template: string, params: DeepLinkParams): string {
     .replace(/{tenantId}/g, encodedTenantId);
 
   try {
-    const url = new URL(urlString, "https://example.com");
+    const url = new URL(urlString);
+
+    // Only allow http: and https: protocols
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+      return "";
+    }
 
     // Ensure standard UTM tags are present if not already in template
     if (!url.searchParams.has("utm_source")) {
@@ -50,13 +71,9 @@ export function buildShopUrl(template: string, params: DeepLinkParams): string {
       }
     }
 
-    // If template was relative or didn't have scheme, preserve original format or return full href
-    if (urlString.startsWith("http://") || urlString.startsWith("https://")) {
-      return url.toString();
-    }
-    return `${url.pathname}${url.search}${url.hash}`;
+    return url.toString();
   } catch {
-    // If URL parsing fails, return interpolated string directly
-    return urlString;
+    // If URL parsing fails, check if valid safe URL string
+    return isSafeHttpUrl(urlString) ? urlString : "";
   }
 }

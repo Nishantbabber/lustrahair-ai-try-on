@@ -1,4 +1,4 @@
-import type { TryOnProvider, TryOnInput, TryOnOutput } from "@/types/tryon";
+import type { TryOnProvider, TryOnInput, TryOnOutput, TransformationMode } from "@/types/tryon";
 import type { Look, HairColor } from "@/types/tryon";
 
 export async function createProvider(name: string): Promise<TryOnProvider> {
@@ -53,10 +53,11 @@ export function resolveProviderName(): string {
 
 export async function generateTryOn(
   input: TryOnInput,
-  look: Look,
-  color: HairColor
+  look?: Look | null,
+  color?: HairColor | null,
+  mode: TransformationMode = "both"
 ): Promise<TryOnOutput> {
   const providerName = resolveProviderName();
   const provider = await createProvider(providerName);
-  return provider.generateTryOn(input, look, color);
+  return provider.generateTryOn(input, look, color, mode);
 }

@@ -24,6 +24,114 @@
       "tenantId": "default",
       "timestamp": "2026-10-04T13:01:27.787Z",
       "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-07T08:52:19.498Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-07T08:56:04.062Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-07T08:56:09.303Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-07T09:07:13.117Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-07T09:07:18.488Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-07T09:08:01.570Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-07T09:43:27.263Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-07T09:44:57.410Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-07T09:45:23.318Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-07T09:49:16.276Z",
+      "consentGiven": true
+    }
+  ],
+  "default:2026-11": 10,
+  "_rateLimitHits": [
+    {
+      "tenantId": "default",
+      "ip": "::1",
+      "timestamp": "2026-11-07T09:15:32.562Z"
+    },
+    {
+      "tenantId": "default",
+      "ip": "::1",
+      "timestamp": "2026-11-07T09:15:35.238Z"
+    },
+    {
+      "tenantId": "default",
+      "ip": "::1",
+      "timestamp": "2026-11-07T09:15:36.850Z"
+    },
+    {
+      "tenantId": "default",
+      "ip": "::1",
+      "timestamp": "2026-11-07T09:15:40.134Z"
+    },
+    {
+      "tenantId": "default",
+      "ip": "::1",
+      "timestamp": "2026-11-07T09:15:43.146Z"
+    },
+    {
+      "tenantId": "default",
+      "ip": "::1",
+      "timestamp": "2026-11-07T09:15:50.201Z"
+    },
+    {
+      "tenantId": "default",
+      "ip": "::1",
+      "timestamp": "2026-11-07T09:16:38.763Z"
+    },
+    {
+      "tenantId": "default",
+      "ip": "::1",
+      "timestamp": "2026-11-07T09:16:41.051Z"
+    },
+    {
+      "tenantId": "default",
+      "ip": "::1",
+      "timestamp": "2026-11-07T09:16:42.210Z"
+    },
+    {
+      "tenantId": "default",
+      "ip": "::1",
+      "timestamp": "2026-11-07T09:19:22.280Z"
+    },
+    {
+      "tenantId": "default",
+      "ip": "::1",
+      "timestamp": "2026-11-07T09:20:36.239Z"
     }
   ]
 }

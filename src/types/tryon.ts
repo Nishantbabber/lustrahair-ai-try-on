@@ -1,9 +1,13 @@
 export type HairColorId = string;
 
+export type TransformationMode = "style" | "color" | "both";
+
 export interface HairColor {
   id: string;
   name: string;
   hex: string;
+  category?: string;
+  aiInstruction?: string;
 }
 
 export interface Look {
@@ -33,8 +37,9 @@ export interface Product {
 
 export interface TryOnInput {
   originalImage: string;
-  lookId: string;
-  colorId: HairColorId;
+  mode?: TransformationMode;
+  lookId?: string;
+  colorId?: HairColorId;
 }
 
 export interface TryOnOutput {
@@ -45,7 +50,7 @@ export interface TryOnOutput {
 
 export interface TryOnProvider {
   name: string;
-  generateTryOn(input: TryOnInput, look: Look, color: HairColor): Promise<TryOnOutput>;
+  generateTryOn(input: TryOnInput, look?: Look | null, color?: HairColor | null, mode?: TransformationMode): Promise<TryOnOutput>;
 }
 
 export type TryOnStep = "upload" | "choose" | "processing" | "error";
@@ -53,6 +58,7 @@ export type TryOnStep = "upload" | "choose" | "processing" | "error";
 export interface TryOnSession {
   originalImage: string | null;
   originalImageName: string | null;
+  mode?: TransformationMode;
   selectedLookId: string;
   selectedColorId: HairColorId;
   resultImage: string | null;

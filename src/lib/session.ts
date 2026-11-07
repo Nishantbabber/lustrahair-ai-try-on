@@ -4,6 +4,7 @@ import {
   SESSION_STORAGE_KEY,
   type TryOnSession,
   type HairColorId,
+  type TransformationMode,
 } from "@/types/tryon";
 
 const DEFAULT_SESSION: TryOnSession = {
@@ -15,6 +16,7 @@ const DEFAULT_SESSION: TryOnSession = {
   saved: false,
   provider: null,
   photoConsentGiven: false,
+  mode: "both",
 };
 
 export function getSession(): TryOnSession {
@@ -55,13 +57,18 @@ export function clearSession(): void {
 }
 
 export function hasValidResult(session: TryOnSession): boolean {
-  return Boolean(session.originalImage && session.resultImage && session.selectedLookId);
+  const mode = session.mode ?? "both";
+  if (!session.originalImage || !session.resultImage) return false;
+  if (mode === "color") return Boolean(session.selectedColorId);
+  if (mode === "style") return Boolean(session.selectedLookId);
+  return Boolean(session.selectedLookId && session.selectedColorId);
 }
 
-export function updateLookSelection(lookId: string, colorId?: HairColorId): TryOnSession {
+export function updateLookSelection(lookId: string, colorId?: HairColorId, mode?: TransformationMode): TryOnSession {
   return saveSession({
     selectedLookId: lookId,
     ...(colorId ? { selectedColorId: colorId } : {}),
+    ...(mode ? { mode } : {}),
     resultImage: null,
     saved: false,
     provider: null,
