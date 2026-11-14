@@ -14,6 +14,7 @@ import { validateImagePayload } from "../src/lib/image-validation";
 import { withTimeoutAndRetry } from "../src/lib/ai/errors";
 import { getSecurityHeaders } from "../src/lib/security-headers";
 import { POST as tryOnHandler } from "../src/app/api/try-on/route";
+import { middleware } from "../src/middleware";
 import { NextRequest } from "next/server";
 
 describe("1. Mode-Specific Prompts Verification", () => {
@@ -501,13 +502,33 @@ describe("8. Route Handler Security Verification (G2 & G3 - Route-Level)", () =>
     assert.equal(data.code, "PAYLOAD_TOO_LARGE");
   });
 
-  test("Route-level: Malformed Content-Length is rejected with 400", async () => {
+  test("Route-level: Valid Content-Length header is accepted", async () => {
+    const payload = JSON.stringify({ consentGiven: false });
     const req = new NextRequest("http://localhost:3000/api/try-on", {
       method: "POST",
       headers: {
         "content-type": "application/json",
         "x-tenant-id": "default",
-        "content-length": "invalid-length",
+        "content-length": String(Buffer.byteLength(payload, "utf-8")),
+      },
+      body: payload,
+    });
+
+    const res = await tryOnHandler(req);
+    // Passes Content-Length validation and fails at consent validation (step 3)
+    assert.equal(res.status, 400);
+    const data = await res.json();
+    assert.equal(data.code, "SERVER_ERROR");
+    assert.match(data.error, /consent checkbox/);
+  });
+
+  test("Route-level: Malformed Content-Length '123abc' is rejected with 400", async () => {
+    const req = new NextRequest("http://localhost:3000/api/try-on", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-tenant-id": "default",
+        "content-length": "123abc",
       },
       body: "{}",
     });
@@ -516,6 +537,61 @@ describe("8. Route Handler Security Verification (G2 & G3 - Route-Level)", () =>
     assert.equal(res.status, 400);
     const data = await res.json();
     assert.equal(data.code, "BAD_REQUEST");
+    assert.match(data.error, /Invalid Content-Length header/);
+  });
+
+  test("Route-level: Malformed Content-Length '4.5' is rejected with 400", async () => {
+    const req = new NextRequest("http://localhost:3000/api/try-on", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-tenant-id": "default",
+        "content-length": "4.5",
+      },
+      body: "{}",
+    });
+
+    const res = await tryOnHandler(req);
+    assert.equal(res.status, 400);
+    const data = await res.json();
+    assert.equal(data.code, "BAD_REQUEST");
+    assert.match(data.error, /Invalid Content-Length header/);
+  });
+
+  test("Route-level: Negative Content-Length '-1' is rejected with 400", async () => {
+    const req = new NextRequest("http://localhost:3000/api/try-on", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-tenant-id": "default",
+        "content-length": "-1",
+      },
+      body: "{}",
+    });
+
+    const res = await tryOnHandler(req);
+    assert.equal(res.status, 400);
+    const data = await res.json();
+    assert.equal(data.code, "BAD_REQUEST");
+    assert.match(data.error, /Invalid Content-Length header/);
+  });
+
+  test("Route-level: Unsafe integer Content-Length is rejected with 400", async () => {
+    const req = new NextRequest("http://localhost:3000/api/try-on", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-tenant-id": "default",
+        "content-length": "99999999999999999999999999999999",
+      },
+      body: "{}",
+    });
+
+    const res = await tryOnHandler(req);
+    assert.equal(res.status, 400);
+    const data = await res.json();
+    assert.equal(data.code, "BAD_REQUEST");
+    assert.match(data.error, /Invalid Content-Length header/);
   });
 
   test("Route-level: Malformed JSON receives controlled 400 response", async () => {
@@ -534,6 +610,78 @@ describe("8. Route Handler Security Verification (G2 & G3 - Route-Level)", () =>
     assert.equal(data.success, false);
     assert.equal(data.code, "INVALID_JSON");
     assert.match(data.error, /Malformed JSON payload/);
+  });
+
+  test("Route-level: JSON null rejected with 400", async () => {
+    const req = new NextRequest("http://localhost:3000/api/try-on", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-tenant-id": "default",
+      },
+      body: "null",
+    });
+
+    const res = await tryOnHandler(req);
+    assert.equal(res.status, 400);
+    const data = await res.json();
+    assert.equal(data.success, false);
+    assert.equal(data.code, "INVALID_JSON");
+    assert.match(data.error, /request body must be a JSON object/);
+  });
+
+  test("Route-level: JSON array rejected with 400", async () => {
+    const req = new NextRequest("http://localhost:3000/api/try-on", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-tenant-id": "default",
+      },
+      body: "[1, 2, 3]",
+    });
+
+    const res = await tryOnHandler(req);
+    assert.equal(res.status, 400);
+    const data = await res.json();
+    assert.equal(data.success, false);
+    assert.equal(data.code, "INVALID_JSON");
+    assert.match(data.error, /request body must be a JSON object/);
+  });
+
+  test("Route-level: JSON string rejected with 400", async () => {
+    const req = new NextRequest("http://localhost:3000/api/try-on", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-tenant-id": "default",
+      },
+      body: '"just a string"',
+    });
+
+    const res = await tryOnHandler(req);
+    assert.equal(res.status, 400);
+    const data = await res.json();
+    assert.equal(data.success, false);
+    assert.equal(data.code, "INVALID_JSON");
+    assert.match(data.error, /request body must be a JSON object/);
+  });
+
+  test("Route-level: JSON number rejected with 400", async () => {
+    const req = new NextRequest("http://localhost:3000/api/try-on", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-tenant-id": "default",
+      },
+      body: "42",
+    });
+
+    const res = await tryOnHandler(req);
+    assert.equal(res.status, 400);
+    const data = await res.json();
+    assert.equal(data.success, false);
+    assert.equal(data.code, "INVALID_JSON");
+    assert.match(data.error, /request body must be a JSON object/);
   });
 
   test("Route-level: Valid image requests continue to pass validation", async () => {
@@ -557,5 +705,68 @@ describe("8. Route Handler Security Verification (G2 & G3 - Route-Level)", () =>
     assert.equal(res.status, 404);
     const data = await res.json();
     assert.match(data.error, /Selected hairstyle is not available/);
+  });
+});
+
+describe("9. Middleware Integration Verification (Middleware-Level)", () => {
+  test("Middleware: ignores static assets and Next internals", () => {
+    const staticReq = new NextRequest("http://localhost:3000/_next/static/test.js");
+    const res = middleware(staticReq);
+    assert.equal(res.headers.get("x-tenant-id"), null);
+  });
+
+  test("Middleware: overwrites untrusted incoming x-tenant-id header with resolved tenant", () => {
+    // Client sends spoofed x-tenant-id: "aurasalon" on default domain
+    const req = new NextRequest("http://localhost:3000/api/try-on", {
+      headers: {
+        "x-tenant-id": "aurasalon",
+      },
+    });
+
+    const res = middleware(req);
+    // Resolved tenant should be "default" (from localhost), NOT client-supplied "aurasalon"
+    assert.equal(res.headers.get("x-tenant-id"), "default");
+  });
+
+  test("Middleware: resolves query param ?tenant=aurasalon and sets trusted header", () => {
+    const req = new NextRequest("http://localhost:3000/api/try-on?tenant=aurasalon", {
+      headers: {
+        "x-tenant-id": "fake-tenant",
+      },
+    });
+
+    const res = middleware(req);
+    assert.equal(res.headers.get("x-tenant-id"), "aurasalon");
+  });
+
+  test("Middleware: rejects unknown tenant in query param on API route with 404 JSON", async () => {
+    const req = new NextRequest("http://localhost:3000/api/try-on?tenant=unknown-salon");
+    const res = middleware(req);
+    assert.equal(res.status, 404);
+    const data = await res.json();
+    assert.equal(data.success, false);
+    assert.equal(data.code, "NOT_FOUND");
+  });
+
+  test("Middleware: resolves subdomain tenant and sets header", () => {
+    const req = new NextRequest("http://aurasalon.example.com/api/try-on", {
+      headers: {
+        host: "aurasalon.example.com",
+      },
+    });
+
+    const res = middleware(req);
+    assert.equal(res.headers.get("x-tenant-id"), "aurasalon");
+  });
+
+  test("Middleware: vercel.app domains always resolve to default, never parsed as tenant", () => {
+    const req = new NextRequest("http://aurasalon.vercel.app/api/try-on", {
+      headers: {
+        host: "aurasalon.vercel.app",
+      },
+    });
+
+    const res = middleware(req);
+    assert.equal(res.headers.get("x-tenant-id"), "default");
   });
 });

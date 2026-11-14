@@ -70,8 +70,19 @@ export async function POST(request: NextRequest) {
   // Check Content-Length header first if present
   const contentLengthHeader = request.headers.get("content-length");
   if (contentLengthHeader !== null) {
-    const contentLength = parseInt(contentLengthHeader, 10);
-    if (isNaN(contentLength) || contentLength < 0) {
+    const trimmed = contentLengthHeader.trim();
+    if (!/^\d+$/.test(trimmed)) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "BAD_REQUEST",
+          error: "Invalid Content-Length header.",
+        },
+        { status: 400 }
+      );
+    }
+    const contentLength = Number(trimmed);
+    if (!Number.isSafeInteger(contentLength) || contentLength < 0) {
       return NextResponse.json(
         {
           success: false,
@@ -107,7 +118,11 @@ export async function POST(request: NextRequest) {
         if (done) break;
         totalBytes += value.byteLength;
         if (totalBytes > MAX_REQUEST_BODY_BYTES) {
-          await reader.cancel();
+          try {
+            await reader.cancel();
+          } catch {
+            // Best-effort stream cancellation
+          }
           return NextResponse.json(
             {
               success: false,
@@ -158,9 +173,9 @@ export async function POST(request: NextRequest) {
   }
 
   // Parse JSON safely
-  let body: TryOnRequestBody;
+  let rawParsed: unknown;
   try {
-    body = JSON.parse(bodyText) as TryOnRequestBody;
+    rawParsed = JSON.parse(bodyText);
   } catch {
     return NextResponse.json(
       {
@@ -171,6 +186,20 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+
+  // Validate parsed JSON structure: reject null, arrays, primitives
+  if (typeof rawParsed !== "object" || rawParsed === null || Array.isArray(rawParsed)) {
+    return NextResponse.json(
+      {
+        success: false,
+        code: "INVALID_JSON",
+        error: "Malformed JSON payload: request body must be a JSON object.",
+      },
+      { status: 400 }
+    );
+  }
+
+  const body = rawParsed as TryOnRequestBody;
 
   try {
     const providerName = resolveProviderName();

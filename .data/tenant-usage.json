@@ -84,6 +84,11 @@
       "tenantId": "default",
       "timestamp": "2026-11-14T13:52:37.456Z",
       "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-14T13:57:17.034Z",
+      "consentGiven": true
     }
   ],
   "default:2026-11": 10,
