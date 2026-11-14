@@ -55,9 +55,10 @@ export async function generateTryOn(
   input: TryOnInput,
   look?: Look | null,
   color?: HairColor | null,
-  mode: TransformationMode = "both"
+  mode: TransformationMode = "both",
+  signal?: AbortSignal
 ): Promise<TryOnOutput> {
   const providerName = resolveProviderName();
   const provider = await createProvider(providerName);
-  return provider.generateTryOn(input, look, color, mode);
+  return provider.generateTryOn(input, look, color, mode, signal);
 }

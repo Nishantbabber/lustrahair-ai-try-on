@@ -145,7 +145,13 @@ function extractImageFromOpenRouterResponse(response: OpenRouterResponse): strin
 export const openrouterProvider: TryOnProvider = {
   name: "openrouter",
 
-  async generateTryOn(input: TryOnInput, look?: Look | null, color?: HairColor | null, mode: TransformationMode = "both"): Promise<TryOnOutput> {
+  async generateTryOn(
+    input: TryOnInput,
+    look?: Look | null,
+    color?: HairColor | null,
+    mode: TransformationMode = "both",
+    signal?: AbortSignal
+  ): Promise<TryOnOutput> {
     const apiKey =
       process.env.OPENROUTER_API_KEY?.trim() ||
       process.env.GEMINI_API_KEY?.trim();
@@ -205,6 +211,7 @@ export const openrouterProvider: TryOnProvider = {
           "X-Title": "LustraHair AI Try-On",
         },
         body: JSON.stringify(requestBody),
+        signal,
       });
 
       responseData = (await response.json()) as OpenRouterResponse;

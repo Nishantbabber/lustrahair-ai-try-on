@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateTryOn, resolveProviderName } from "@/lib/ai/provider";
-import { getLookById as getStaticLookById } from "@/data/looks";
 import { type HairColorId, type Look, type TransformationMode } from "@/types/tryon";
 import { getTenantConfig } from "@/lib/tenant/loader";
 import { checkTenantQuota, incrementTenantUsage, recordConsentEvent, recordRateLimitHit } from "@/lib/tenant/usage";
@@ -11,6 +10,7 @@ import {
 } from "@/lib/ai/errors";
 import { getClientIp, getRateLimiter, RATE_LIMIT_WINDOW_MS } from "@/lib/rate-limit/limiter";
 import { resolveShadesForStyle, shadeToHairColor } from "@/lib/tenant/catalog";
+import { validateImagePayload } from "@/lib/image-validation";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -24,11 +24,22 @@ interface TryOnRequestBody {
 }
 
 export async function POST(request: NextRequest) {
-  // 1. Resolve tenant identity
+  // 1. Resolve tenant identity strictly from trusted server header set by middleware
+  // If not set by middleware, extract from query / cookie only after allowlist verification
   const tenantHeader = request.headers.get("x-tenant-id");
-  const cookieTenant = request.cookies.get("x-tenant-id")?.value;
-  const tenantId = (tenantHeader || cookieTenant || "default").toLowerCase();
+  const tenantId = (tenantHeader || "default").toLowerCase().trim();
   const tenant = getTenantConfig(tenantId);
+
+  if (!tenant) {
+    return NextResponse.json(
+      {
+        success: false,
+        code: "NOT_FOUND",
+        error: "Tenant not found or invalid tenant identifier.",
+      },
+      { status: 404 }
+    );
+  }
 
   try {
     const body = (await request.json()) as TryOnRequestBody;
@@ -98,7 +109,7 @@ export async function POST(request: NextRequest) {
     recordConsentEvent(tenantId);
 
     // 4. Pre-call Tenant Quota Check
-    const quota = checkTenantQuota(tenantId, tenant.monthlyTryOnLimit);
+    const quota = checkTenantQuota(tenantId, tenant.monthlyTryOnLimit ?? 250);
     if (!quota.allowed) {
       logServerError({
         tenantId,
@@ -112,31 +123,19 @@ export async function POST(request: NextRequest) {
           success: false,
           code: "TENANT_QUOTA_EXCEEDED",
           error: `We've hit the monthly try-on limit for ${tenant.brandName}. Please contact the store or try again next month.`,
-          currentUsage: quota.currentUsage,
-          limit: quota.limit,
         },
         { status: 429 }
       );
     }
 
-    // 5. Image Validations
-    if (!body.originalImage || typeof body.originalImage !== "string") {
+    // 5. Server-Side Image Validations: Size, Format, Signature, Base64 & Dimensions
+    const imageValidation = validateImagePayload(body.originalImage);
+    if (!imageValidation.valid) {
       return NextResponse.json(
         {
           success: false,
           code: "UNSAFE_IMAGE",
-          error: "An uploaded photo is required to create your try-on preview.",
-        },
-        { status: 400 }
-      );
-    }
-
-    if (!body.originalImage.startsWith("data:image/")) {
-      return NextResponse.json(
-        {
-          success: false,
-          code: "UNSAFE_IMAGE",
-          error: "Invalid photo format. Please upload a JPG, PNG, or WEBP image.",
+          error: imageValidation.error || "Invalid photo format. Please upload a clear JPG, PNG, or WEBP image under 2 MB.",
         },
         { status: 400 }
       );
@@ -146,7 +145,7 @@ export async function POST(request: NextRequest) {
     const requireStyle = mode === "style" || mode === "both";
     const requireColor = mode === "color" || mode === "both";
 
-    // 6a. Hairstyle resolution & validation
+    // 6a. Hairstyle resolution & validation strictly within tenant catalogue
     let look: Look | null = null;
     let tenantStyle: (typeof tenant.styles)[number] | undefined;
 
@@ -159,38 +158,33 @@ export async function POST(request: NextRequest) {
       }
 
       tenantStyle = tenant.styles.find((s) => s.id === body.lookId);
-      if (tenantStyle) {
-        look = {
-          id: tenantStyle.id,
-          name: tenantStyle.name,
-          category: tenantStyle.category,
-          length: tenantStyle.length,
-          description: tenantStyle.description,
-          previewImage: tenantStyle.referenceImage || tenantStyle.previewImage || "",
-          demoResultImage: tenantStyle.demoResultImage,
-          aiInstruction: tenantStyle.aiInstruction,
-          stylistRecommendation: tenantStyle.stylistRecommendation,
-          productId: tenantStyle.productId,
-          colorOnly: tenantStyle.colorOnly,
-        };
-      } else {
-        look = getStaticLookById(body.lookId) || null;
-      }
-
-      if (!look) {
+      if (!tenantStyle) {
+        // Strictly reject look if not found in this tenant's catalogue (no global fallback)
         return NextResponse.json(
           { success: false, code: "SERVER_ERROR", error: "Selected hairstyle is not available in this catalogue." },
           { status: 404 }
         );
       }
+
+      look = {
+        id: tenantStyle.id,
+        name: tenantStyle.name,
+        category: tenantStyle.category,
+        length: tenantStyle.length,
+        description: tenantStyle.description,
+        previewImage: tenantStyle.referenceImage || tenantStyle.previewImage || "",
+        demoResultImage: tenantStyle.demoResultImage,
+        aiInstruction: tenantStyle.aiInstruction || "",
+        stylistRecommendation: tenantStyle.stylistRecommendation,
+        productId: tenantStyle.productId,
+        colorOnly: tenantStyle.colorOnly,
+      };
     }
 
-    // 6b. Hair Colour resolution & validation
+    // 6b. Hair Colour resolution & validation strictly within tenant catalogue
     let color: ReturnType<typeof shadeToHairColor> | null = null;
 
     if (requireColor) {
-      // In color-only mode, colorId is strictly required
-      // In both mode, colorId is required unless style is colorOnly
       if (!body.colorId || typeof body.colorId !== "string" || !body.colorId.trim()) {
         return NextResponse.json(
           { success: false, code: "SERVER_ERROR", error: "Please select a hair colour to try on." },
@@ -198,7 +192,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // If a hairstyle is also selected and restricts shades, validate against allowed shades
+      // If a hairstyle is selected and restricts shades, validate against allowed shades
       const allowedShades = tenantStyle ? resolveShadesForStyle(tenant, tenantStyle) : tenant.shades;
       const matchedShade = allowedShades.find((s) => s.id === body.colorId);
 
@@ -212,9 +206,9 @@ export async function POST(request: NextRequest) {
       color = shadeToHairColor(matchedShade);
     }
 
-    // 7. Execute AI Generation with timeout and 1 automatic retry
+    // 7. Execute AI Generation with timeout and NO automatic retries for paid generations
     const result = await withTimeoutAndRetry(
-      async () => {
+      async (signal: AbortSignal) => {
         return generateTryOn(
           {
             originalImage: body.originalImage!,
@@ -224,12 +218,13 @@ export async function POST(request: NextRequest) {
           },
           look,
           color,
-          mode
+          mode,
+          signal
         );
       },
       {
         timeoutMs: 45000,
-        maxRetries: 1,
+        maxRetries: 0, // Disabled automatic retries for paid generation requests
         tenantId,
         stageName: "AI Generation",
       }
@@ -238,9 +233,10 @@ export async function POST(request: NextRequest) {
     // 8. Increment monthly usage on successful generation
     const newUsage = incrementTenantUsage(tenantId);
     console.log(
-      `[TRYON] Success — tenant: ${tenantId}, newUsage: ${newUsage}/${tenant.monthlyTryOnLimit}`
+      `[TRYON] Success — tenant: ${tenantId}, newUsage: ${newUsage}/${tenant.monthlyTryOnLimit ?? 250}`
     );
 
+    // Return safe response without internal quota numbers
     return NextResponse.json({
       success: true,
       resultImage: result.resultImage,

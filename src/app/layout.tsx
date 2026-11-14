@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
+import { notFound } from "next/navigation";
 import { Header } from "@/components/Header";
-import { getTenantConfig } from "@/lib/tenant/loader";
+import { getTenantConfig, sanitizeTenantForClient } from "@/lib/tenant/loader";
 import { TenantProvider } from "@/lib/tenant/context";
 import "./globals.css";
 
@@ -9,6 +10,12 @@ export async function generateMetadata(): Promise<Metadata> {
   const headersList = await headers();
   const tenantId = headersList.get("x-tenant-id") || "default";
   const tenant = getTenantConfig(tenantId);
+
+  if (!tenant) {
+    return {
+      title: "LustraHair — AI Virtual Hair Try-On",
+    };
+  }
 
   return {
     title: `${tenant.brandName} — AI Virtual Hair Try-On`,
@@ -40,6 +47,10 @@ export default async function RootLayout({
   const tenantId = headersList.get("x-tenant-id") || "default";
   const tenant = getTenantConfig(tenantId);
 
+  if (!tenant) {
+    notFound();
+  }
+
   const dynamicCss = `
     :root {
       --color-champagne: ${tenant.theme.primaryColor};
@@ -53,13 +64,16 @@ export default async function RootLayout({
     }
   `;
 
+  // Provide only public sanitized configuration to client React tree
+  const publicTenant = sanitizeTenantForClient(tenant);
+
   return (
     <html lang="en">
       <head>
         <style dangerouslySetInnerHTML={{ __html: dynamicCss }} />
       </head>
       <body className="min-h-screen antialiased">
-        <TenantProvider tenant={tenant}>
+        <TenantProvider tenant={publicTenant}>
           <Header />
           <main>{children}</main>
         </TenantProvider>

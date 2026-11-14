@@ -78,7 +78,13 @@ function extractImageFromResponse(response: {
 export const geminiProvider: TryOnProvider = {
   name: "gemini",
 
-  async generateTryOn(input: TryOnInput, look?: Look | null, color?: HairColor | null, mode: TransformationMode = "both"): Promise<TryOnOutput> {
+  async generateTryOn(
+    input: TryOnInput,
+    look?: Look | null,
+    color?: HairColor | null,
+    mode: TransformationMode = "both",
+    signal?: AbortSignal
+  ): Promise<TryOnOutput> {
     const start = Date.now();
 
     const apiKey = process.env.GEMINI_API_KEY?.trim();
@@ -93,20 +99,25 @@ export const geminiProvider: TryOnProvider = {
     // If an OpenRouter key or model format (e.g. google/gemini-3.1-flash-image) is provided, delegate to OpenRouter
     if (apiKey.startsWith("sk-or-") || modelName.includes("/")) {
       const { openrouterProvider } = await import("./openrouter-provider");
-      return openrouterProvider.generateTryOn(input, look, color, mode);
+      return openrouterProvider.generateTryOn(input, look, color, mode, signal);
     }
 
     console.log(`[TRYON] Gemini request starting`);
     console.log(`[TRYON] Gemini model = ${modelName}`);
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: modelName,
-      generationConfig: {
-        // @ts-expect-error responseModalities is supported by image-generation capable models
-        responseModalities: ["TEXT", "IMAGE"],
+    const model = genAI.getGenerativeModel(
+      {
+        model: modelName,
+        generationConfig: {
+          // @ts-expect-error responseModalities is supported by image-generation capable models
+          responseModalities: ["TEXT", "IMAGE"],
+        },
       },
-    });
+      {
+        signal,
+      }
+    );
 
     const { mimeType, data } = extractBase64(input.originalImage);
     const prompt = buildTryOnPrompt(look, color, mode);

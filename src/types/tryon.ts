@@ -50,7 +50,13 @@ export interface TryOnOutput {
 
 export interface TryOnProvider {
   name: string;
-  generateTryOn(input: TryOnInput, look?: Look | null, color?: HairColor | null, mode?: TransformationMode): Promise<TryOnOutput>;
+  generateTryOn(
+    input: TryOnInput,
+    look?: Look | null,
+    color?: HairColor | null,
+    mode?: TransformationMode,
+    signal?: AbortSignal
+  ): Promise<TryOnOutput>;
 }
 
 export type TryOnStep = "upload" | "choose" | "processing" | "error";

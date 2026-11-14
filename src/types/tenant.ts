@@ -53,7 +53,7 @@ export interface TenantStyle {
   referenceImage: string; // Thumbnail customers pick from
   previewImage?: string; // Backwards compatible alias
   demoResultImage: string;
-  aiInstruction: string;
+  aiInstruction?: string; // Server-side AI prompt instruction (omitted from public client payloads)
   stylistRecommendation: string;
   productId: string;
   productUrlTemplate: string;
@@ -90,6 +90,6 @@ export interface TenantConfig {
   currency: TenantCurrency;
   styles: TenantStyle[];
   featureFlags: TenantFeatureFlags;
-  monthlyTryOnLimit: number;
-  limits?: TenantLimits;
+  monthlyTryOnLimit?: number; // Internal operational limit (omitted from public client payloads)
+  limits?: TenantLimits; // Internal rate limits (omitted from public client payloads)
 }

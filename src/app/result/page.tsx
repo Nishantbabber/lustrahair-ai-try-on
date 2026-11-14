@@ -8,7 +8,6 @@ import { ProductCard } from "@/components/ProductCard";
 import { ShopModal } from "@/components/ShopModal";
 import { ConsultationModal } from "@/components/ConsultationModal";
 import { Button } from "@/components/Button";
-import { getLookById as getStaticLookById, getProductByLookId } from "@/data/looks";
 import { type Product, type Look, type TransformationMode } from "@/types/tryon";
 import { getSession, saveSession, hasValidResult } from "@/lib/session";
 import type { TryOnSession } from "@/types/tryon";
@@ -54,9 +53,8 @@ export default function ResultPage() {
   const isColorMode = mode === "color";
   const isBothMode = mode === "both";
 
-  // Look resolution: check tenant catalog first, fallback to static catalog
+  // Look resolution: strictly use tenant catalog (no global fallback bypassing tenant)
   const tenantStyle = session && session.selectedLookId ? getStyleById(session.selectedLookId) : undefined;
-  const staticLook = session && session.selectedLookId ? getStaticLookById(session.selectedLookId) : undefined;
 
   const look: Look | undefined = useMemo(() => {
     if (isColorMode) return undefined;
@@ -69,13 +67,13 @@ export default function ResultPage() {
           description: tenantStyle.description,
           previewImage: tenantStyle.referenceImage || tenantStyle.previewImage || "",
           demoResultImage: tenantStyle.demoResultImage,
-          aiInstruction: tenantStyle.aiInstruction,
+          aiInstruction: tenantStyle.aiInstruction || "",
           stylistRecommendation: tenantStyle.stylistRecommendation,
           productId: tenantStyle.productId,
           colorOnly: tenantStyle.colorOnly,
         }
-      : staticLook;
-  }, [tenantStyle, staticLook, isColorMode]);
+      : undefined;
+  }, [tenantStyle, isColorMode]);
 
   // Color resolution
   const color = useMemo(() => {
@@ -114,8 +112,8 @@ export default function ResultPage() {
       };
     }
 
-    return session?.selectedLookId ? getProductByLookId(session.selectedLookId) : undefined;
-  }, [tenantStyle, tenant, session, isColorMode, color]);
+    return undefined;
+  }, [tenantStyle, tenant, isColorMode, color]);
 
   // Save look handler: persists metadata in localStorage and triggers device download
   const handleSave = useCallback(() => {

@@ -98,6 +98,9 @@ async function main() {
   const looksDir = path.join(process.cwd(), "public/images/looks");
 
   const tenant = getTenantConfig("default");
+  if (!tenant) {
+    throw new Error("Default tenant could not be loaded");
+  }
   const results: { id: string; ok: boolean; error?: string }[] = [];
 
   for (const style of tenant.styles) {
@@ -109,7 +112,7 @@ async function main() {
       description: style.description,
       previewImage: style.referenceImage || style.previewImage || "",
       demoResultImage: style.demoResultImage,
-      aiInstruction: style.aiInstruction,
+      aiInstruction: style.aiInstruction || "",
       stylistRecommendation: style.stylistRecommendation,
       productId: style.productId,
     };

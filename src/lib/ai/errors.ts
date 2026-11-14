@@ -111,7 +111,37 @@ export function classifyAIError(err: unknown): ClassifiedError {
 }
 
 /**
+ * Sanitizes context objects to ensure base64 payloads, images, API keys, and authorization headers are never logged.
+ */
+function sanitizeContext(context?: Record<string, unknown>): Record<string, unknown> | undefined {
+  if (!context) return undefined;
+  const sanitized: Record<string, unknown> = {};
+
+  for (const [key, val] of Object.entries(context)) {
+    const lowerKey = key.toLowerCase();
+    if (
+      lowerKey.includes("key") ||
+      lowerKey.includes("auth") ||
+      lowerKey.includes("token") ||
+      lowerKey.includes("secret") ||
+      lowerKey.includes("image") ||
+      lowerKey.includes("photo") ||
+      lowerKey.includes("base64")
+    ) {
+      sanitized[key] = "[REDACTED]";
+    } else if (typeof val === "string" && (val.startsWith("data:image/") || val.length > 500)) {
+      sanitized[key] = `[STRING_TRUNCATED_LENGTH_${val.length}]`;
+    } else {
+      sanitized[key] = val;
+    }
+  }
+
+  return sanitized;
+}
+
+/**
  * Server-side structured logger ensuring all failures are traceable by tenant ID and timestamp.
+ * Redacts any sensitive data, authorization headers, or base64 images.
  */
 export function logServerError({
   tenantId,
@@ -127,17 +157,28 @@ export function logServerError({
   context?: Record<string, unknown>;
 }): void {
   const timestamp = new Date().toISOString();
-  const errDetails = originalError instanceof Error ? originalError.stack || originalError.message : originalError;
+  let errDetails = originalError instanceof Error ? originalError.stack || originalError.message : String(originalError ?? "");
+
+  // Scrub any accidental keys or base64 images in error details
+  if (errDetails.includes("data:image/")) {
+    errDetails = errDetails.replace(/data:image\/[a-zA-Z0-9+]+;base64,[A-Za-z0-9+/=]+/g, "[BASE64_IMAGE_REDACTED]");
+  }
+  if (errDetails.includes("Bearer ")) {
+    errDetails = errDetails.replace(/Bearer\s+[a-zA-Z0-9_\-\.]+/g, "Bearer [REDACTED]");
+  }
+
+  const cleanContext = sanitizeContext(context);
 
   console.error(
     `[TRYON_ERROR] [tenant: ${tenantId}] [time: ${timestamp}] [code: ${code}] Message: ${message}`,
-    context ? `Context: ${JSON.stringify(context)}` : "",
-    errDetails ? `\nStack/Details: ${errDetails}` : ""
+    cleanContext ? `Context: ${JSON.stringify(cleanContext)}` : "",
+    errDetails ? `\nDetails: ${errDetails}` : ""
   );
 }
 
 /**
- * Wraps an asynchronous operation with a timeout and 1 automatic retry on transient/timeout errors.
+ * Wraps an asynchronous operation with a timeout and optional retries.
+ * In Phase 1A, automatic retries for paid AI generation are disabled (maxRetries = 0).
  */
 export async function withTimeoutAndRetry<T>(
   operation: (signal: AbortSignal) => Promise<T>,
@@ -149,7 +190,8 @@ export async function withTimeoutAndRetry<T>(
   }
 ): Promise<T> {
   const timeoutMs = options.timeoutMs ?? 50000;
-  const maxRetries = options.maxRetries ?? 1;
+  // Disable automatic retries by default for generation safety until idempotency is implemented
+  const maxRetries = options.maxRetries ?? 0;
 
   let attempt = 0;
 

@@ -29,13 +29,17 @@ export const demoProvider: TryOnProvider = {
     _input: TryOnInput,
     look?: Look | null,
     color?: HairColor | null,
-    mode: TransformationMode = "both"
+    mode: TransformationMode = "both",
+    signal?: AbortSignal
   ): Promise<TryOnOutput> {
     void color;
     void mode;
     const start = Date.now();
 
     for (const stageDelay of STAGE_DELAYS) {
+      if (signal?.aborted) {
+        throw new Error("Request aborted");
+      }
       await delay(stageDelay);
     }
 

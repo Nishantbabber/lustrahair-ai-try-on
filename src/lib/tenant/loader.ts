@@ -1,6 +1,9 @@
 import type { TenantConfig, TenantCurrency, TenantShade } from "@/types/tenant";
 import fs from "fs";
 import path from "path";
+import { isKnownTenant, isValidTenantIdentifier } from "./constants";
+
+export { isKnownTenant, isValidTenantIdentifier, KNOWN_TENANTS } from "./constants";
 
 export const DEFAULT_CONSENT_CHECKBOX_TEXT =
   "I consent to my photo being processed by AI to generate this preview. My photo is processed in memory, is not stored on our servers, and is not used by us to train any model.";
@@ -54,26 +57,33 @@ const tenantCache = new Map<string, TenantConfig>();
 
 /**
  * Resolves a tenant identifier from a Host header and optional URL query parameters.
- * Priority:
- * 1. Explicit query parameter (?tenant=brand-a)
- * 2. Subdomain (e.g. brand-a.localhost:3000 or brand-a.domain.com)
- * 3. Default fallback ("default")
+ * Requirements:
+ * - Strictly validate tenant IDs against the existing tenant allowlist.
+ * - Return null for unknown or invalid tenant IDs (do NOT silently fall back to default).
+ * - Do NOT interpret *.vercel.app hostnames as tenant IDs.
  */
 export function resolveTenantId(
   hostHeader?: string | null,
   searchParams?: URLSearchParams | null
-): string {
+): string | null {
   // 1. Check query param
-  if (searchParams) {
+  if (searchParams && searchParams.has("tenant")) {
     const fromQuery = searchParams.get("tenant")?.toLowerCase().trim();
     if (fromQuery && isValidTenantIdentifier(fromQuery)) {
-      return fromQuery;
+      return isKnownTenant(fromQuery) ? fromQuery : null;
     }
+    return null;
   }
 
   // 2. Check host / subdomain
   if (hostHeader) {
     const cleanHost = hostHeader.split(":")[0].toLowerCase().trim();
+
+    // Do NOT interpret vercel.app or any *.vercel.app hostnames as tenant IDs
+    if (cleanHost === "vercel.app" || cleanHost.endsWith(".vercel.app")) {
+      return "default";
+    }
+
     const parts = cleanHost.split(".");
 
     // e.g. aurasalon.domain.com -> 3 parts, subdomain is aurasalon
@@ -89,7 +99,7 @@ export function resolveTenantId(
         candidate !== "127" &&
         isValidTenantIdentifier(candidate)
       ) {
-        return candidate;
+        return isKnownTenant(candidate) ? candidate : null;
       }
     }
   }
@@ -97,16 +107,19 @@ export function resolveTenantId(
   return "default";
 }
 
-function isValidTenantIdentifier(id: string): boolean {
-  return /^[a-z0-9_-]+$/i.test(id);
-}
-
 /**
  * Loads a tenant config from tenants/[id].json.
- * Falls back to tenants/default.json if tenant config file does not exist.
+ * Returns null if tenant is unknown or file not found (no silent fallback).
  */
-export function getTenantConfig(tenantId: string = "default"): TenantConfig {
-  const safeId = isValidTenantIdentifier(tenantId) ? tenantId.toLowerCase() : "default";
+export function getTenantConfig(tenantId: string): TenantConfig | null {
+  if (!isValidTenantIdentifier(tenantId)) {
+    return null;
+  }
+
+  const safeId = tenantId.toLowerCase().trim();
+  if (!isKnownTenant(safeId)) {
+    return null;
+  }
 
   if (tenantCache.has(safeId)) {
     return tenantCache.get(safeId)!;
@@ -118,7 +131,7 @@ export function getTenantConfig(tenantId: string = "default"): TenantConfig {
   try {
     if (fs.existsSync(targetFile)) {
       let raw = fs.readFileSync(targetFile, "utf-8");
-      if (raw.charCodeAt(0) === 0xFEFF) {
+      if (raw.charCodeAt(0) === 0xfeff) {
         raw = raw.slice(1);
       }
       const parsed = applyTenantDefaults(JSON.parse(raw) as TenantConfig);
@@ -129,13 +142,54 @@ export function getTenantConfig(tenantId: string = "default"): TenantConfig {
     console.error(`[TENANT_LOADER] Failed to load tenant "${safeId}":`, err);
   }
 
-  // Fallback to default
-  if (safeId !== "default") {
-    return getTenantConfig("default");
+  if (safeId === "default") {
+    return applyTenantDefaults(defaultTenantJson as unknown as TenantConfig);
   }
 
-  // Absolute fallback to imported json
-  return applyTenantDefaults(defaultTenantJson as unknown as TenantConfig);
+  return null;
 }
 
-
+/**
+ * Strips internal and sensitive configuration from TenantConfig before passing to client components.
+ * Removes:
+ * - aiInstruction from styles and shades
+ * - monthlyTryOnLimit
+ * - limits
+ */
+export function sanitizeTenantForClient(tenant: TenantConfig): TenantConfig {
+  return {
+    id: tenant.id,
+    brandName: tenant.brandName,
+    logo: tenant.logo,
+    theme: tenant.theme,
+    copy: tenant.copy,
+    currency: tenant.currency,
+    featureFlags: tenant.featureFlags,
+    shades: tenant.shades.map((shade) => ({
+      id: shade.id,
+      name: shade.name,
+      hex: shade.hex,
+      category: shade.category,
+      order: shade.order,
+      // aiInstruction is omitted
+    })),
+    styles: tenant.styles.map((style) => ({
+      id: style.id,
+      name: style.name,
+      category: style.category,
+      length: style.length,
+      description: style.description,
+      referenceImage: style.referenceImage,
+      previewImage: style.previewImage,
+      demoResultImage: style.demoResultImage,
+      stylistRecommendation: style.stylistRecommendation,
+      productId: style.productId,
+      productUrlTemplate: style.productUrlTemplate,
+      price: style.price,
+      shadeIds: style.shadeIds,
+      colorOnly: style.colorOnly,
+      // aiInstruction is omitted
+    })),
+    // monthlyTryOnLimit and limits are omitted
+  };
+}
