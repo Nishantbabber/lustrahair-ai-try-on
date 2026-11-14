@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateTryOn, resolveProviderName } from "@/lib/ai/provider";
 import { type HairColorId, type Look, type TransformationMode } from "@/types/tryon";
-import { getTenantConfig } from "@/lib/tenant/loader";
+import { getTenantConfig, isKnownTenant, isValidTenantIdentifier } from "@/lib/tenant/loader";
 import { checkTenantQuota, incrementTenantUsage, recordConsentEvent, recordRateLimitHit } from "@/lib/tenant/usage";
 import {
   classifyAIError,
@@ -15,6 +15,9 @@ import { validateImagePayload } from "@/lib/image-validation";
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
+// Maximum request body size: 4 MB (allows 2 MB binary image as base64 ~2.8 MB + JSON metadata)
+const MAX_REQUEST_BODY_BYTES = 4 * 1024 * 1024;
+
 interface TryOnRequestBody {
   originalImage?: string;
   mode?: TransformationMode;
@@ -24,12 +27,34 @@ interface TryOnRequestBody {
 }
 
 export async function POST(request: NextRequest) {
-  // 1. Resolve tenant identity strictly from trusted server header set by middleware
-  // If not set by middleware, extract from query / cookie only after allowlist verification
-  const tenantHeader = request.headers.get("x-tenant-id");
-  const tenantId = (tenantHeader || "default").toLowerCase().trim();
-  const tenant = getTenantConfig(tenantId);
+  // 1. Resolve & strictly validate tenant identity inside the API route (G3)
+  const rawTenantHeader = request.headers.get("x-tenant-id");
 
+  if (!rawTenantHeader || !rawTenantHeader.trim()) {
+    return NextResponse.json(
+      {
+        success: false,
+        code: "INVALID_TENANT",
+        error: "Missing x-tenant-id header.",
+      },
+      { status: 400 }
+    );
+  }
+
+  const tenantId = rawTenantHeader.toLowerCase().trim();
+
+  if (!isValidTenantIdentifier(tenantId) || !isKnownTenant(tenantId)) {
+    return NextResponse.json(
+      {
+        success: false,
+        code: "NOT_FOUND",
+        error: "Tenant not found or invalid tenant identifier.",
+      },
+      { status: 404 }
+    );
+  }
+
+  const tenant = getTenantConfig(tenantId);
   if (!tenant) {
     return NextResponse.json(
       {
@@ -41,8 +66,113 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // 2. Enforce request-body size limits before JSON parsing (G2)
+  // Check Content-Length header first if present
+  const contentLengthHeader = request.headers.get("content-length");
+  if (contentLengthHeader !== null) {
+    const contentLength = parseInt(contentLengthHeader, 10);
+    if (isNaN(contentLength) || contentLength < 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "BAD_REQUEST",
+          error: "Invalid Content-Length header.",
+        },
+        { status: 400 }
+      );
+    }
+    if (contentLength > MAX_REQUEST_BODY_BYTES) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "PAYLOAD_TOO_LARGE",
+          error: `Request body exceeds maximum size limit of ${MAX_REQUEST_BODY_BYTES / (1024 * 1024)} MB.`,
+        },
+        { status: 413 }
+      );
+    }
+  }
+
+  // Stream-read request body with hard bounded byte limit
+  let bodyText = "";
+  if (request.body) {
+    try {
+      const reader = request.body.getReader();
+      const decoder = new TextDecoder();
+      let totalBytes = 0;
+      const chunks: string[] = [];
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        totalBytes += value.byteLength;
+        if (totalBytes > MAX_REQUEST_BODY_BYTES) {
+          await reader.cancel();
+          return NextResponse.json(
+            {
+              success: false,
+              code: "PAYLOAD_TOO_LARGE",
+              error: `Request body exceeds maximum size limit of ${MAX_REQUEST_BODY_BYTES / (1024 * 1024)} MB.`,
+            },
+            { status: 413 }
+          );
+        }
+        chunks.push(decoder.decode(value, { stream: true }));
+      }
+      chunks.push(decoder.decode());
+      bodyText = chunks.join("");
+    } catch {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "BAD_REQUEST",
+          error: "Failed to read request body.",
+        },
+        { status: 400 }
+      );
+    }
+  } else {
+    // If request has no stream body, try request.text() with length check
+    try {
+      bodyText = await request.text();
+      if (Buffer.byteLength(bodyText, "utf-8") > MAX_REQUEST_BODY_BYTES) {
+        return NextResponse.json(
+          {
+            success: false,
+            code: "PAYLOAD_TOO_LARGE",
+            error: `Request body exceeds maximum size limit of ${MAX_REQUEST_BODY_BYTES / (1024 * 1024)} MB.`,
+          },
+          { status: 413 }
+        );
+      }
+    } catch {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "BAD_REQUEST",
+          error: "Failed to read request body.",
+        },
+        { status: 400 }
+      );
+    }
+  }
+
+  // Parse JSON safely
+  let body: TryOnRequestBody;
   try {
-    const body = (await request.json()) as TryOnRequestBody;
+    body = JSON.parse(bodyText) as TryOnRequestBody;
+  } catch {
+    return NextResponse.json(
+      {
+        success: false,
+        code: "INVALID_JSON",
+        error: "Malformed JSON payload.",
+      },
+      { status: 400 }
+    );
+  }
+
+  try {
     const providerName = resolveProviderName();
 
     // Mode resolution & validation: default to "both" for backward compatibility

@@ -1,18 +1,20 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { buildTryOnPrompt } from "../src/lib/ai/prompts.ts";
-import { shadeToHairColor, resolveShadesForStyle } from "../src/lib/tenant/catalog.ts";
+import { buildTryOnPrompt } from "../src/lib/ai/prompts";
+import { shadeToHairColor, resolveShadesForStyle } from "../src/lib/tenant/catalog";
 import {
   getTenantConfig,
   isKnownTenant,
   resolveTenantId,
   sanitizeTenantForClient,
-} from "../src/lib/tenant/loader.ts";
-import { checkTenantQuota } from "../src/lib/tenant/usage.ts";
-import { InMemorySlidingWindowRateLimiter } from "../src/lib/rate-limit/limiter.ts";
-import { validateImagePayload } from "../src/lib/image-validation.ts";
-import { withTimeoutAndRetry } from "../src/lib/ai/errors.ts";
-import { getSecurityHeaders } from "../src/lib/security-headers.ts";
+} from "../src/lib/tenant/loader";
+import { checkTenantQuota } from "../src/lib/tenant/usage";
+import { InMemorySlidingWindowRateLimiter } from "../src/lib/rate-limit/limiter";
+import { validateImagePayload } from "../src/lib/image-validation";
+import { withTimeoutAndRetry } from "../src/lib/ai/errors";
+import { getSecurityHeaders } from "../src/lib/security-headers";
+import { POST as tryOnHandler } from "../src/app/api/try-on/route";
+import { NextRequest } from "next/server";
 
 describe("1. Mode-Specific Prompts Verification", () => {
   const sampleLook = {
@@ -364,5 +366,196 @@ describe("7. Rate Limiting and Session Compatibility", () => {
     assert.equal(typeof quota.allowed, "boolean");
     assert.equal(quota.limit, 250);
     assert.equal(typeof quota.currentUsage, "number");
+  });
+});
+
+describe("8. Route Handler Security Verification (G2 & G3 - Route-Level)", () => {
+  // Helper to construct a valid 120x120 PNG data URL
+  function createTestPngDataUrl(): string {
+    const buf = Buffer.alloc(24);
+    buf[0] = 0x89; buf[1] = 0x50; buf[2] = 0x4e; buf[3] = 0x47;
+    buf[4] = 0x0d; buf[5] = 0x0a; buf[6] = 0x1a; buf[7] = 0x0a;
+    buf.writeUInt32BE(13, 8);
+    buf.write("IHDR", 12);
+    buf.writeUInt32BE(120, 16);
+    buf.writeUInt32BE(120, 20);
+    return `data:image/png;base64,${buf.toString("base64")}`;
+  }
+
+  test("Route-level: Missing x-tenant-id header is rejected with 400", async () => {
+    const req = new NextRequest("http://localhost:3000/api/try-on", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ mode: "both" }),
+    });
+
+    const res = await tryOnHandler(req);
+    assert.equal(res.status, 400);
+    const data = await res.json();
+    assert.equal(data.success, false);
+    assert.equal(data.code, "INVALID_TENANT");
+    assert.match(data.error, /Missing x-tenant-id header/);
+  });
+
+  test("Route-level: Unknown x-tenant-id header is rejected with 404 (no fallback)", async () => {
+    const req = new NextRequest("http://localhost:3000/api/try-on", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-tenant-id": "unknown-salon-hacker",
+      },
+      body: JSON.stringify({ mode: "both" }),
+    });
+
+    const res = await tryOnHandler(req);
+    assert.equal(res.status, 404);
+    const data = await res.json();
+    assert.equal(data.success, false);
+    assert.equal(data.code, "NOT_FOUND");
+    assert.match(data.error, /Tenant not found/);
+  });
+
+  test("Route-level: Malformed x-tenant-id header is rejected with 404", async () => {
+    const req = new NextRequest("http://localhost:3000/api/try-on", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-tenant-id": "../malicious/path",
+      },
+      body: JSON.stringify({ mode: "both" }),
+    });
+
+    const res = await tryOnHandler(req);
+    assert.equal(res.status, 404);
+    const data = await res.json();
+    assert.equal(data.success, false);
+    assert.equal(data.code, "NOT_FOUND");
+  });
+
+  test("Route-level: Valid tenant header ('default' and 'aurasalon') is accepted past tenant validation", async () => {
+    for (const validTenant of ["default", "aurasalon"]) {
+      const req = new NextRequest("http://localhost:3000/api/try-on", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-tenant-id": validTenant,
+        },
+        body: JSON.stringify({
+          consentGiven: false, // will fail at consent step (step 3), proving tenant validation succeeded
+        }),
+      });
+
+      const res = await tryOnHandler(req);
+      assert.equal(res.status, 400);
+      const data = await res.json();
+      assert.equal(data.code, "SERVER_ERROR");
+      assert.match(data.error, /consent checkbox/);
+    }
+  });
+
+  test("Route-level: Oversized request-body via Content-Length is rejected with 413 before JSON parsing", async () => {
+    const req = new NextRequest("http://localhost:3000/api/try-on", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-tenant-id": "default",
+        "content-length": String(5 * 1024 * 1024), // 5 MB declared
+      },
+      body: "{}",
+    });
+
+    const res = await tryOnHandler(req);
+    assert.equal(res.status, 413);
+    const data = await res.json();
+    assert.equal(data.success, false);
+    assert.equal(data.code, "PAYLOAD_TOO_LARGE");
+    assert.match(data.error, /exceeds maximum size limit/);
+  });
+
+  test("Route-level: Oversized streamed body without Content-Length is rejected with 413", async () => {
+    // Generate a payload exceeding 4 MB
+    const largePayload = "a".repeat(4 * 1024 * 1024 + 1024);
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(largePayload));
+        controller.close();
+      },
+    });
+
+    const req = new NextRequest("http://localhost:3000/api/try-on", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-tenant-id": "default",
+        // No Content-Length header
+      },
+      body: stream,
+    });
+
+    const res = await tryOnHandler(req);
+    assert.equal(res.status, 413);
+    const data = await res.json();
+    assert.equal(data.success, false);
+    assert.equal(data.code, "PAYLOAD_TOO_LARGE");
+  });
+
+  test("Route-level: Malformed Content-Length is rejected with 400", async () => {
+    const req = new NextRequest("http://localhost:3000/api/try-on", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-tenant-id": "default",
+        "content-length": "invalid-length",
+      },
+      body: "{}",
+    });
+
+    const res = await tryOnHandler(req);
+    assert.equal(res.status, 400);
+    const data = await res.json();
+    assert.equal(data.code, "BAD_REQUEST");
+  });
+
+  test("Route-level: Malformed JSON receives controlled 400 response", async () => {
+    const req = new NextRequest("http://localhost:3000/api/try-on", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-tenant-id": "default",
+      },
+      body: "{ not valid json ::: }",
+    });
+
+    const res = await tryOnHandler(req);
+    assert.equal(res.status, 400);
+    const data = await res.json();
+    assert.equal(data.success, false);
+    assert.equal(data.code, "INVALID_JSON");
+    assert.match(data.error, /Malformed JSON payload/);
+  });
+
+  test("Route-level: Valid image requests continue to pass validation", async () => {
+    const validPng = createTestPngDataUrl();
+    const req = new NextRequest("http://localhost:3000/api/try-on", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-tenant-id": "default",
+      },
+      body: JSON.stringify({
+        consentGiven: true,
+        originalImage: validPng,
+        mode: "style",
+        lookId: "nonexistent-look", // triggers look validation in catalog (step 6a)
+      }),
+    });
+
+    const res = await tryOnHandler(req);
+    // Must pass image validation (step 5) and fail at catalogue look resolution (step 6a)
+    assert.equal(res.status, 404);
+    const data = await res.json();
+    assert.match(data.error, /Selected hairstyle is not available/);
   });
 });
