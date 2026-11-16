@@ -89,9 +89,64 @@
       "tenantId": "default",
       "timestamp": "2026-11-14T13:57:17.034Z",
       "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-16T15:30:24.246Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-16T15:31:39.565Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-16T15:33:53.451Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-16T15:33:53.886Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-16T15:33:53.911Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-16T15:33:53.917Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-16T15:40:24.839Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-16T15:42:38.392Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-16T15:43:05.436Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-16T15:46:49.269Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-16T15:47:25.805Z",
+      "consentGiven": true
     }
   ],
-  "default:2026-11": 10,
+  "default:2026-11": 15,
   "_rateLimitHits": [
     {
       "tenantId": "default",

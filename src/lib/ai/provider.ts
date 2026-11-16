@@ -3,6 +3,8 @@ import type { Look, HairColor } from "@/types/tryon";
 
 export async function createProvider(name: string): Promise<TryOnProvider> {
   switch (name) {
+    case "cloudflare":
+      return (await import("./cloudflare-provider")).cloudflareProvider;
     case "openrouter":
       return (await import("./openrouter-provider")).openrouterProvider;
     case "gemini":
@@ -32,6 +34,11 @@ export function resolveProviderName(): string {
   console.log(`[TRYON] OPENROUTER_API_KEY configured = ${hasOpenRouterKey}`);
   console.log(`[TRYON] GEMINI_API_KEY configured = ${hasGeminiKey}`);
   console.log(`[TRYON] MODEL = ${model}`);
+
+  if (configured === "cloudflare") {
+    console.log(`[TRYON] selected provider = cloudflare`);
+    return "cloudflare";
+  }
 
   // If explicitly openrouter, or if an OpenRouter key/model is detected
   if (
