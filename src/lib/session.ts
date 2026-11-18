@@ -2,49 +2,142 @@ import {
   DEFAULT_COLOR_ID,
   DEFAULT_LOOK_ID,
   SESSION_STORAGE_KEY,
+  ORIGINAL_IMAGE_STORAGE_KEY,
   type TryOnSession,
   type HairColorId,
   type TransformationMode,
 } from "@/types/tryon";
 
-const DEFAULT_SESSION: TryOnSession = {
-  originalImage: null,
+/**
+ * Session metadata stored in SESSION_STORAGE_KEY.
+ * Does NOT contain originalImage or resultImage — those are stored separately.
+ */
+type SessionMetadata = Omit<TryOnSession, "originalImage" | "resultImage">;
+
+const DEFAULT_METADATA: SessionMetadata = {
   originalImageName: null,
   selectedLookId: DEFAULT_LOOK_ID,
   selectedColorId: DEFAULT_COLOR_ID,
-  resultImage: null,
   saved: false,
   provider: null,
   photoConsentGiven: false,
   mode: "both",
 };
 
-export function getSession(): TryOnSession {
-  if (typeof window === "undefined") return DEFAULT_SESSION;
+const DEFAULT_SESSION: TryOnSession = {
+  ...DEFAULT_METADATA,
+  originalImage: null,
+  resultImage: null,
+};
 
+// ─── Low-level storage helpers ───────────────────────────────────────────────
+
+function readOriginalImage(): string | null {
+  if (typeof window === "undefined") return null;
   try {
-    const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
-    if (!stored) return DEFAULT_SESSION;
-    return { ...DEFAULT_SESSION, ...JSON.parse(stored) };
+    return sessionStorage.getItem(ORIGINAL_IMAGE_STORAGE_KEY);
   } catch {
-    return DEFAULT_SESSION;
+    return null;
   }
 }
 
+function writeOriginalImage(dataUrl: string | null): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (dataUrl === null) {
+      sessionStorage.removeItem(ORIGINAL_IMAGE_STORAGE_KEY);
+    } else {
+      sessionStorage.setItem(ORIGINAL_IMAGE_STORAGE_KEY, dataUrl);
+    }
+  } catch {
+    // Quota exceeded — originalImage could not be persisted
+  }
+}
+
+function readResultImage(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    if (!stored) return null;
+    const parsed = JSON.parse(stored) as Record<string, unknown>;
+    return typeof parsed.resultImage === "string" ? parsed.resultImage : null;
+  } catch {
+    return null;
+  }
+}
+
+function readMetadata(): SessionMetadata {
+  if (typeof window === "undefined") return DEFAULT_METADATA;
+  try {
+    const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    if (!stored) return DEFAULT_METADATA;
+    const parsed = JSON.parse(stored) as Record<string, unknown>;
+    // Strip image blobs from metadata before merging with defaults
+    const { resultImage: _r, originalImage: _o, ...rest } = parsed as Record<string, unknown>;
+    void _r;
+    void _o;
+    return { ...DEFAULT_METADATA, ...(rest as Partial<SessionMetadata>) };
+  } catch {
+    return DEFAULT_METADATA;
+  }
+}
+
+function writeMetadata(meta: SessionMetadata, resultImage: string | null): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(
+      SESSION_STORAGE_KEY,
+      JSON.stringify({ ...meta, resultImage })
+    );
+  } catch {
+    // Quota exceeded — persist metadata without the result image blob
+    try {
+      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(meta));
+    } catch {
+      // Nothing we can do
+    }
+  }
+}
+
+// ─── Public API ───────────────────────────────────────────────────────────────
+
+export function getSession(): TryOnSession {
+  if (typeof window === "undefined") return DEFAULT_SESSION;
+
+  const metadata = readMetadata();
+  const originalImage = readOriginalImage();
+  const resultImage = readResultImage();
+
+  return {
+    ...DEFAULT_SESSION,
+    ...metadata,
+    originalImage,
+    resultImage,
+  };
+}
+
+/**
+ * Saves a partial session update.
+ *
+ * originalImage is stored in its own dedicated sessionStorage key so that it
+ * is NEVER evicted by a large resultImage blob overflowing the quota.
+ *
+ * resultImage is stored inside the main session JSON blob alongside metadata.
+ */
 export function saveSession(partial: Partial<TryOnSession>): TryOnSession {
   const current = getSession();
-  const updated = { ...current, ...partial };
+  const updated: TryOnSession = { ...current, ...partial };
 
   if (typeof window !== "undefined") {
-    try {
-      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(updated));
-    } catch {
-      // sessionStorage may be full with large images — persist metadata only
-      const { originalImage, resultImage, ...metadata } = updated;
-      void originalImage;
-      void resultImage;
-      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(metadata));
+    // 1. Persist originalImage separately if it has changed
+    if ("originalImage" in partial) {
+      writeOriginalImage(updated.originalImage);
     }
+
+    // 2. Persist metadata + resultImage together
+    const { originalImage: _orig, resultImage, ...rest } = updated;
+    void _orig;
+    writeMetadata(rest as SessionMetadata, resultImage);
   }
 
   return updated;
@@ -53,6 +146,7 @@ export function saveSession(partial: Partial<TryOnSession>): TryOnSession {
 export function clearSession(): void {
   if (typeof window !== "undefined") {
     sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    sessionStorage.removeItem(ORIGINAL_IMAGE_STORAGE_KEY);
   }
 }
 

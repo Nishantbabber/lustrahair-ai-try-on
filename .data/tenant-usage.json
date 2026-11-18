@@ -144,9 +144,84 @@
       "tenantId": "default",
       "timestamp": "2026-11-16T15:47:25.805Z",
       "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-18T14:53:23.356Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-18T14:53:23.707Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-18T14:53:23.720Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-18T14:53:23.724Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-18T14:58:58.819Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-18T15:14:24.579Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-18T15:15:19.372Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-18T15:49:45.271Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-18T15:49:45.632Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-18T15:49:45.650Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-18T15:49:45.657Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-18T15:52:56.299Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-18T15:53:30.808Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-18T15:54:03.599Z",
+      "consentGiven": true
+    },
+    {
+      "tenantId": "default",
+      "timestamp": "2026-11-18T15:54:22.849Z",
+      "consentGiven": true
     }
   ],
-  "default:2026-11": 15,
+  "default:2026-11": 22,
   "_rateLimitHits": [
     {
       "tenantId": "default",

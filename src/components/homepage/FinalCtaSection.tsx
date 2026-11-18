@@ -2,17 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Sparkles, X, CheckCircle2, Mail } from "lucide-react";
+import { ArrowRight, Sparkles, X, CheckCircle2, Mail, Instagram } from "lucide-react";
 import { useTenant } from "@/lib/tenant/context";
 
-/**
- * To configure a business contact email, set the following in your .env.local:
- *   NEXT_PUBLIC_CONTACT_EMAIL=hello@yourdomain.com
- *
- * Leave unset (or empty) and the dialog will show a "not yet configured" message.
- * Never invent or hard-code an email address here.
- */
-const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL || "";
+const CONTACT_EMAIL = "lustrahairco@gmail.com";
+const CONTACT_INSTAGRAM_HANDLE = "@lustra__hair";
+const CONTACT_INSTAGRAM_URL = "https://www.instagram.com/lustra__hair/";
 
 export function FinalCtaSection() {
   const { tenant } = useTenant();
@@ -99,7 +94,7 @@ export function FinalCtaSection() {
 
             <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-champagne-light/50 px-3 py-1 text-xs font-semibold text-charcoal">
               <Sparkles className="h-3.5 w-3.5 text-champagne" />
-              <span>Salon & Boutique Onboarding</span>
+              <span>Salon &amp; Boutique Onboarding</span>
             </div>
 
             <h3 id="contact-modal-title" className="font-display text-2xl text-charcoal">
@@ -127,32 +122,38 @@ export function FinalCtaSection() {
             </ul>
 
             {/* Contact section */}
-            <div className="mt-6 rounded-lg border border-border bg-ivory-dark/60 p-4">
-              {CONTACT_EMAIL ? (
-                <div className="flex items-start gap-3">
-                  <Mail className="h-5 w-5 shrink-0 text-champagne mt-0.5" />
-                  <div>
-                    <p className="text-sm font-semibold text-charcoal">Get in touch</p>
-                    <p className="mt-1 text-xs text-charcoal-muted leading-relaxed">
-                      To discuss onboarding for your business, email us at:
-                    </p>
-                    <a
-                      href={`mailto:${CONTACT_EMAIL}`}
-                      className="mt-2 inline-block text-sm font-medium text-charcoal underline underline-offset-2 hover:text-champagne transition-colors"
-                    >
-                      {CONTACT_EMAIL}
-                    </a>
-                  </div>
-                </div>
-              ) : (
+            <div className="mt-6 rounded-lg border border-border bg-ivory-dark/60 p-4 space-y-4">
+              <p className="text-sm font-semibold text-charcoal">Get in touch</p>
+
+              {/* Instagram */}
+              <div className="flex items-center gap-3">
+                <Instagram className="h-5 w-5 shrink-0 text-champagne" aria-hidden="true" />
                 <div>
-                  <p className="text-xs font-semibold text-charcoal mb-1">Direct enquiries</p>
-                  <p className="text-xs text-charcoal-muted leading-relaxed">
-                    A direct contact address for onboarding enquiries has not yet been configured.
-                    In the meantime, you can evaluate the full working experience below using your own photos.
-                  </p>
+                  <p className="text-xs text-charcoal-muted leading-relaxed">Instagram</p>
+                  <a
+                    href={CONTACT_INSTAGRAM_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-0.5 inline-block text-sm font-medium text-charcoal underline underline-offset-2 hover:text-champagne transition-colors"
+                  >
+                    {CONTACT_INSTAGRAM_HANDLE}
+                  </a>
                 </div>
-              )}
+              </div>
+
+              {/* Email */}
+              <div className="flex items-center gap-3">
+                <Mail className="h-5 w-5 shrink-0 text-champagne" aria-hidden="true" />
+                <div>
+                  <p className="text-xs text-charcoal-muted leading-relaxed">Email</p>
+                  <a
+                    href={`mailto:${CONTACT_EMAIL}`}
+                    className="mt-0.5 inline-block text-sm font-medium text-charcoal underline underline-offset-2 hover:text-champagne transition-colors"
+                  >
+                    {CONTACT_EMAIL}
+                  </a>
+                </div>
+              </div>
             </div>
 
             <div className="mt-6 flex flex-col sm:flex-row gap-3">

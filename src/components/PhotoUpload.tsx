@@ -195,12 +195,12 @@ export function PhotoUpload({
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-soft animate-fade-in">
-          <div className="relative aspect-[3/4] max-h-[420px] w-full overflow-hidden bg-ivory-dark">
+          <div className="relative w-full overflow-hidden bg-ivory-dark flex items-center justify-center" style={{ maxHeight: "480px", minHeight: "160px" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={image}
               alt="Your uploaded photo preview"
-              className="h-full w-full object-cover"
+              className="block w-full h-auto max-h-[480px] object-contain"
             />
             <button
               onClick={onClear}

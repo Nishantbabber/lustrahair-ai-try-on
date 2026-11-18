@@ -77,6 +77,7 @@ export const DEFAULT_LOOK_ID = "signature-waves";
 export const DEFAULT_COLOR_ID: HairColorId = "";
 
 export const SESSION_STORAGE_KEY = "lustra-hair-session";
+export const ORIGINAL_IMAGE_STORAGE_KEY = "lustra-hair-original-image";
 
 export const ACCEPTED_IMAGE_TYPES = [
   "image/jpeg",
