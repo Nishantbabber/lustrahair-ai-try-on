@@ -57,6 +57,8 @@ export const cloudflareProvider: TryOnProvider = {
       imageBuffer: prepared.buffer,
       mimeType: prepared.mimeType,
       prompt,
+      originalWidth: prepared.originalWidth,
+      originalHeight: prepared.originalHeight,
       signal,
     });
 

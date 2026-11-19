@@ -9,6 +9,10 @@ import {
   getCloudflareConfig,
   isCloudflareTestAllowed,
   CLOUDFLARE_DEFAULT_MODEL,
+  resolveOutputDimensions,
+  FLUX_MIN_DIMENSION,
+  FLUX_MAX_DIMENSION,
+  FLUX_DIMENSION_STEP,
 } from "../src/lib/cloudflare/client";
 import { POST as cloudflareImageHandler } from "../src/app/api/test/cloudflare-image/route";
 
@@ -272,12 +276,75 @@ describe("Cloudflare FLUX.2 Klein 4B Isolated Integration Tests", () => {
       imageBuffer: jpegBuf,
       mimeType: "image/jpeg",
       prompt: "test hair",
+      originalWidth: 200,
+      originalHeight: 200,
       signal: controller.signal,
     });
 
     assert.equal(result.success, false);
     assert.equal(result.code, "TIMEOUT");
     assert.match(result.error || "", /timed out/);
+  });
+
+  describe("resolveOutputDimensions — aspect-ratio-matching output sizes", () => {
+    test("13a. Square input (1:1) → square output", () => {
+      const dims = resolveOutputDimensions(1000, 1000);
+      assert.equal(dims.width, dims.height);
+      assert.equal(dims.width % FLUX_DIMENSION_STEP, 0);
+      assert.ok(dims.width >= FLUX_MIN_DIMENSION);
+      assert.ok(dims.width <= FLUX_MAX_DIMENSION);
+    });
+
+    test("13b. Portrait input (3:4) → portrait output (height > width)", () => {
+      const dims = resolveOutputDimensions(900, 1200);
+      assert.ok(dims.height > dims.width, `Expected h(${dims.height}) > w(${dims.width})`);
+      assert.equal(dims.width % FLUX_DIMENSION_STEP, 0);
+      assert.equal(dims.height % FLUX_DIMENSION_STEP, 0);
+      assert.ok(dims.width >= FLUX_MIN_DIMENSION);
+      assert.ok(dims.height <= FLUX_MAX_DIMENSION);
+    });
+
+    test("13c. Landscape input (16:9) → landscape output (width > height)", () => {
+      const dims = resolveOutputDimensions(1920, 1080);
+      assert.ok(dims.width > dims.height, `Expected w(${dims.width}) > h(${dims.height})`);
+      assert.equal(dims.width % FLUX_DIMENSION_STEP, 0);
+      assert.equal(dims.height % FLUX_DIMENSION_STEP, 0);
+      assert.ok(dims.height >= FLUX_MIN_DIMENSION);
+      assert.ok(dims.width <= FLUX_MAX_DIMENSION);
+    });
+
+    test("13d. Very tall portrait (9:16) → portrait within limits", () => {
+      const dims = resolveOutputDimensions(1080, 1920);
+      assert.ok(dims.height > dims.width, `Expected h(${dims.height}) > w(${dims.width})`);
+      assert.equal(dims.width % FLUX_DIMENSION_STEP, 0);
+      assert.equal(dims.height % FLUX_DIMENSION_STEP, 0);
+      assert.ok(dims.width >= FLUX_MIN_DIMENSION);
+      assert.ok(dims.height <= FLUX_MAX_DIMENSION);
+    });
+
+    test("13e. Standard portrait photo (4:5) → near 4:5 portrait output", () => {
+      const dims = resolveOutputDimensions(800, 1000);
+      assert.ok(dims.height > dims.width, `Expected h(${dims.height}) > w(${dims.width})`);
+      // Aspect ratio should be close to 0.8 (4:5)
+      const outputRatio = dims.width / dims.height;
+      assert.ok(Math.abs(outputRatio - 0.8) < 0.1, `Ratio ${outputRatio} should be near 0.8`);
+    });
+
+    test("13f. All dimensions are multiples of 32", () => {
+      const testCases = [
+        [640, 480], [480, 640], [1000, 1000], [300, 400],
+        [1920, 1080], [1080, 1920], [4000, 3000], [100, 200],
+      ];
+      for (const [w, h] of testCases) {
+        const dims = resolveOutputDimensions(w, h);
+        assert.equal(dims.width % FLUX_DIMENSION_STEP, 0, `Width ${dims.width} not multiple of ${FLUX_DIMENSION_STEP} for input ${w}x${h}`);
+        assert.equal(dims.height % FLUX_DIMENSION_STEP, 0, `Height ${dims.height} not multiple of ${FLUX_DIMENSION_STEP} for input ${w}x${h}`);
+        assert.ok(dims.width >= FLUX_MIN_DIMENSION, `Width ${dims.width} < min ${FLUX_MIN_DIMENSION} for input ${w}x${h}`);
+        assert.ok(dims.height >= FLUX_MIN_DIMENSION, `Height ${dims.height} < min ${FLUX_MIN_DIMENSION} for input ${w}x${h}`);
+        assert.ok(dims.width <= FLUX_MAX_DIMENSION, `Width ${dims.width} > max ${FLUX_MAX_DIMENSION} for input ${w}x${h}`);
+        assert.ok(dims.height <= FLUX_MAX_DIMENSION, `Height ${dims.height} > max ${FLUX_MAX_DIMENSION} for input ${w}x${h}`);
+      }
+    });
   });
 
   describe("Customer /try-on flow integration with Cloudflare provider", () => {

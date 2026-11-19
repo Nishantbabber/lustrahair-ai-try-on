@@ -263,6 +263,8 @@ export async function POST(request: NextRequest) {
       imageBuffer: prepared.buffer,
       mimeType: prepared.mimeType,
       prompt,
+      originalWidth: prepared.originalWidth,
+      originalHeight: prepared.originalHeight,
       signal: controller.signal,
     });
 

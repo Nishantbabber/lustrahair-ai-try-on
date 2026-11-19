@@ -7,7 +7,7 @@ import { PhotoUpload } from "@/components/PhotoUpload";
 import { LookSelector } from "@/components/LookSelector";
 import { ProcessingView } from "@/components/ProcessingView";
 import { ErrorState } from "@/components/ErrorState";
-import { getSession, saveSession } from "@/lib/session";
+import { getSession, saveSession, buildTryOnRequest } from "@/lib/session";
 import type { TryOnSession, HairColorId, TransformationMode } from "@/types/tryon";
 import { useTenant } from "@/lib/tenant/context";
 import { resolveShadesForStyle } from "@/lib/tenant/catalog";
@@ -95,7 +95,9 @@ function TryOnWizard() {
   const handleImageSelect = useCallback((dataUrl: string, fileName: string) => {
     const updated = saveSession({
       originalImage: dataUrl,
+      currentGenerationImage: dataUrl,
       originalImageName: fileName,
+      resultImage: null,
       saved: false,
       provider: null,
     });
@@ -105,7 +107,9 @@ function TryOnWizard() {
   const handleClearImage = useCallback(() => {
     const updated = saveSession({
       originalImage: null,
+      currentGenerationImage: null,
       originalImageName: null,
+      resultImage: null,
     });
     setSession(updated);
   }, []);
@@ -146,7 +150,8 @@ function TryOnWizard() {
 
   const generateTryOn = useCallback(
     async (overrideLookId?: string, overrideMode?: TransformationMode) => {
-      if (!session.originalImage || !session.photoConsentGiven) return;
+      const inputImage = session.currentGenerationImage || session.originalImage;
+      if (!inputImage || !session.photoConsentGiven) return;
 
       const activeMode = overrideMode || mode;
       const targetLookId = activeMode === "color" ? undefined : overrideLookId || session.selectedLookId;
@@ -158,19 +163,19 @@ function TryOnWizard() {
       setErrorDetails(null);
 
       try {
+        const payload = buildTryOnRequest(session, {
+          mode: activeMode,
+          lookId: targetLookId,
+          colorId: targetColorId,
+        });
+
         const response = await fetch("/api/try-on", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "x-tenant-id": tenant.id,
           },
-          body: JSON.stringify({
-            originalImage: session.originalImage,
-            mode: activeMode,
-            lookId: targetLookId,
-            colorId: targetColorId,
-            consentGiven: true,
-          }),
+          body: JSON.stringify(payload),
         });
 
         const data = await response.json();
@@ -186,6 +191,7 @@ function TryOnWizard() {
 
         const updated = saveSession({
           resultImage: data.resultImage,
+          currentGenerationImage: data.resultImage,
           provider: data.provider,
           mode: activeMode,
           ...(targetLookId ? { selectedLookId: targetLookId } : {}),
@@ -203,7 +209,7 @@ function TryOnWizard() {
         setIsGenerating(false);
       }
     },
-    [session.originalImage, session.selectedLookId, session.selectedColorId, session.photoConsentGiven, tenant.id, step, mode, router]
+    [session, tenant.id, step, mode, router]
   );
 
   // Triggered when clicking the primary action on the upload step

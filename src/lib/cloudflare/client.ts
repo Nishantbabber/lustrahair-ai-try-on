@@ -3,8 +3,22 @@ import { inspectImageBuffer, MAX_IMAGE_BINARY_BYTES } from "@/lib/image-validati
 
 export const CLOUDFLARE_DEFAULT_MODEL = "@cf/black-forest-labs/flux-2-klein-4b";
 export const CLOUDFLARE_MAX_REFERENCE_DIMENSION = 511; // Must be strictly smaller than 512px
-export const CLOUDFLARE_OUTPUT_DIMENSION = 512;
 export const CLOUDFLARE_TIMEOUT_MS = 60000;
+
+/**
+ * FLUX.2 Klein output dimension constraints.
+ *
+ * Dimensions must be multiples of 32.  We stay within the range 256–1024 to
+ * balance quality against Neuron cost (billing scales by 512×512-tile count).
+ *
+ * Target total pixel budget: ~393 216 px (equivalent to 768 × 512).
+ * This keeps Neuron cost ≤ ~3 output tiles (~78 Neurons) which is a modest
+ * increase over the previous 1-tile 512×512 cost (~26 Neurons).
+ */
+export const FLUX_MIN_DIMENSION = 256;
+export const FLUX_MAX_DIMENSION = 1024;
+export const FLUX_DIMENSION_STEP = 32;
+export const FLUX_TARGET_PIXELS = 768 * 512; // 393 216 px — quality/cost sweet spot
 
 export interface CloudflareConfig {
   accountId: string;
@@ -142,10 +156,53 @@ export async function prepareReferenceImage(buffer: Buffer): Promise<ResizeImage
 }
 
 /**
+ * Computes optimal FLUX.2 output dimensions that match the original
+ * photograph's aspect ratio.
+ *
+ * Rules:
+ *  - Both dimensions are multiples of FLUX_DIMENSION_STEP (32).
+ *  - Both dimensions ≥ FLUX_MIN_DIMENSION (256) and ≤ FLUX_MAX_DIMENSION (1024).
+ *  - Total pixel count is as close to FLUX_TARGET_PIXELS (768 × 512 = 393 216)
+ *    as possible without exceeding FLUX_MAX_DIMENSION on either axis.
+ *  - Portrait input → portrait output; landscape → landscape; square → square.
+ */
+export function resolveOutputDimensions(
+  originalWidth: number,
+  originalHeight: number,
+): { width: number; height: number } {
+  const aspectRatio = originalWidth / originalHeight;
+
+  // Start from the target pixel budget and derive ideal float dimensions.
+  // area = w * h = w * (w / aspectRatio)  →  w = sqrt(area * aspectRatio)
+  const idealWidth = Math.sqrt(FLUX_TARGET_PIXELS * aspectRatio);
+  const idealHeight = idealWidth / aspectRatio;
+
+  // Snap each to the nearest multiple of FLUX_DIMENSION_STEP.
+  let w = Math.round(idealWidth / FLUX_DIMENSION_STEP) * FLUX_DIMENSION_STEP;
+  let h = Math.round(idealHeight / FLUX_DIMENSION_STEP) * FLUX_DIMENSION_STEP;
+
+  // Clamp both dimensions within [MIN, MAX].
+  w = Math.max(FLUX_MIN_DIMENSION, Math.min(FLUX_MAX_DIMENSION, w));
+  h = Math.max(FLUX_MIN_DIMENSION, Math.min(FLUX_MAX_DIMENSION, h));
+
+  // After clamping, re-snap to the grid (clamping may have broken alignment).
+  w = Math.round(w / FLUX_DIMENSION_STEP) * FLUX_DIMENSION_STEP;
+  h = Math.round(h / FLUX_DIMENSION_STEP) * FLUX_DIMENSION_STEP;
+
+  // Final safety: ensure they remain within bounds after snap.
+  w = Math.max(FLUX_MIN_DIMENSION, Math.min(FLUX_MAX_DIMENSION, w));
+  h = Math.max(FLUX_MIN_DIMENSION, Math.min(FLUX_MAX_DIMENSION, h));
+
+  return { width: w, height: h };
+}
+
+/**
  * Executes image generation on Cloudflare Workers AI with FLUX.2 Klein 4B.
  * - Enforces multipart/form-data.
  * - Does not manually set Content-Type header.
  * - Fixed 4-step inference; no unsupported 'steps' parameter.
+ * - Derives output dimensions from the original photograph's aspect ratio
+ *   so portrait → portrait, landscape → landscape, square → square.
  * - Returns generated image as a displayable data URL, model, elapsed time, and usage/neurons.
  * - Never retries paid generations automatically.
  * - Enforces timeout via AbortSignal.
@@ -155,9 +212,11 @@ export async function runCloudflareImageInference(params: {
   imageBuffer: Buffer;
   mimeType: string;
   prompt: string;
+  originalWidth: number;
+  originalHeight: number;
   signal?: AbortSignal;
 }): Promise<CloudflareGenerationResult> {
-  const { config, imageBuffer, mimeType, prompt, signal } = params;
+  const { config, imageBuffer, mimeType, prompt, originalWidth, originalHeight, signal } = params;
 
   const url = `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(config.accountId)}/ai/run/${config.model}`;
 
@@ -170,8 +229,16 @@ export async function runCloudflareImageInference(params: {
   ) as ArrayBuffer;
   const blob = new Blob([arrayBuffer], { type: mimeType });
   formData.append("input_image_0", blob, "reference_image");
-  formData.append("width", String(CLOUDFLARE_OUTPUT_DIMENSION));
-  formData.append("height", String(CLOUDFLARE_OUTPUT_DIMENSION));
+
+  // Derive output dimensions from the original photograph's aspect ratio.
+  const outputDims = resolveOutputDimensions(originalWidth, originalHeight);
+  formData.append("width", String(outputDims.width));
+  formData.append("height", String(outputDims.height));
+
+  console.log(
+    `[CLOUDFLARE] Output dimensions: ${outputDims.width}×${outputDims.height} ` +
+    `(original ${originalWidth}×${originalHeight}, ratio ${(originalWidth / originalHeight).toFixed(3)})`
+  );
 
   const startTime = Date.now();
 

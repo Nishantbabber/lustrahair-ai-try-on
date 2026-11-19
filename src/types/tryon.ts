@@ -37,6 +37,7 @@ export interface Product {
 
 export interface TryOnInput {
   originalImage: string;
+  currentGenerationImage?: string;
   mode?: TransformationMode;
   lookId?: string;
   colorId?: HairColorId;
@@ -63,6 +64,7 @@ export type TryOnStep = "upload" | "choose" | "processing" | "error";
 
 export interface TryOnSession {
   originalImage: string | null;
+  currentGenerationImage?: string | null;
   originalImageName: string | null;
   mode?: TransformationMode;
   selectedLookId: string;
@@ -78,6 +80,8 @@ export const DEFAULT_COLOR_ID: HairColorId = "";
 
 export const SESSION_STORAGE_KEY = "lustra-hair-session";
 export const ORIGINAL_IMAGE_STORAGE_KEY = "lustra-hair-original-image";
+export const CURRENT_GENERATION_IMAGE_STORAGE_KEY = "lustra-hair-current-generation-image";
+export const CURRENT_IMAGE_STORAGE_KEY = CURRENT_GENERATION_IMAGE_STORAGE_KEY;
 
 export const ACCEPTED_IMAGE_TYPES = [
   "image/jpeg",

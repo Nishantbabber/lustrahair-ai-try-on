@@ -20,6 +20,7 @@ const MAX_REQUEST_BODY_BYTES = 4 * 1024 * 1024;
 
 interface TryOnRequestBody {
   originalImage?: string;
+  currentGenerationImage?: string;
   mode?: TransformationMode;
   lookId?: string;
   colorId?: HairColorId;
@@ -288,7 +289,9 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Server-Side Image Validations: Size, Format, Signature, Base64 & Dimensions
-    const imageValidation = validateImagePayload(body.originalImage);
+    // Use currentGenerationImage as the generation input if provided, falling back to originalImage
+    const generationImage = body.currentGenerationImage || body.originalImage;
+    const imageValidation = validateImagePayload(generationImage);
     if (!imageValidation.valid) {
       return NextResponse.json(
         {
@@ -370,7 +373,8 @@ export async function POST(request: NextRequest) {
       async (signal: AbortSignal) => {
         return generateTryOn(
           {
-            originalImage: body.originalImage!,
+            originalImage: generationImage!,
+            currentGenerationImage: generationImage!,
             lookId: body.lookId,
             colorId: body.colorId,
             mode,

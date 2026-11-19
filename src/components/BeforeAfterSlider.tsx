@@ -23,18 +23,19 @@ export function BeforeAfterSlider({
   /**
    * Shared canvas dimensions in pixels.
    *
-   * We load both images and pick a canvas that:
-   *  - Uses the original (before) image's aspect ratio as the reference.
-   *  - Caps height so the slider is never taller than 85 vh.
+   * We load both images and derive a unified canvas aspect ratio:
+   *  - If both images share the same aspect ratio (within tolerance),
+   *    use that ratio directly — the slider will be pixel-perfect.
+   *  - If they differ (e.g. a portrait original paired with a square
+   *    generated image from an older generation), we use the original
+   *    (before) image's aspect ratio and render the generated image
+   *    with object-fit: contain, top-aligned, so faces still align.
    *
-   * Both images are rendered with object-fit: contain and object-position: top center.
-   * This guarantees:
+   * Both images are rendered with object-fit: contain and
+   * object-position: top center to guarantee:
    *  - Neither photograph is cropped or distorted.
    *  - Both are anchored to the same top edge so face/head regions align.
-   *  - Portrait originals paired with square generated images
-   *    (Cloudflare FLUX.2 always returns 512 × 512) display correctly:
-   *    the generated image is letterboxed (top-aligned) while the original
-   *    fills the full canvas height.
+   *  - The slider reveals matching spatial regions.
    */
   const [canvasRatio, setCanvasRatio] = useState<number | null>(null); // height/width × 100
 
@@ -42,6 +43,11 @@ export function BeforeAfterSlider({
     if (!beforeImage) return;
     let cancelled = false;
 
+    // Load the before (original) image to derive the canvas aspect ratio.
+    // When both images share the same aspect ratio (the normal case after
+    // the FLUX dimension-matching fix), the slider is pixel-perfect.
+    // When they differ, the before image's ratio is used as reference and
+    // the after image is rendered with object-fit: contain (top-aligned).
     const img = new window.Image();
     img.onload = () => {
       if (cancelled || img.naturalWidth === 0) return;
