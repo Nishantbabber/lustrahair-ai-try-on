@@ -211,7 +211,7 @@ export function saveSession(partial: Partial<TryOnSession>): TryOnSession {
       "originalImage" in effectivePartial ||
       "resultImage" in effectivePartial
     ) {
-      writeCurrentGenerationImage(updated.currentGenerationImage);
+      writeCurrentGenerationImage(updated.currentGenerationImage ?? null);
     }
 
     // 3. Persist metadata + resultImage together

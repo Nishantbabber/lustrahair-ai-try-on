@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "tsx --test tests/audit.test.ts tests/cloudflare.test.ts"
+    "test": "tsx --test tests/audit.test.ts tests/cloudflare.test.ts tests/sequential-generation.test.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.0",

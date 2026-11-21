@@ -170,7 +170,9 @@ export default function ResultPage() {
 
   // Attempt generation of another look directly from ResultPage without destroying current result!
   const handleGenerateAnother = async () => {
-    if (!session?.originalImage) return;
+    if (!session) return;
+    const inputImage = session.currentGenerationImage || session.originalImage;
+    if (!inputImage) return;
 
     const requireStyle = modalMode === "style" || modalMode === "both";
     const requireColor = modalMode === "color" || modalMode === "both";
@@ -190,6 +192,7 @@ export default function ResultPage() {
         },
         body: JSON.stringify({
           originalImage: session.originalImage,
+          currentGenerationImage: inputImage,
           mode: modalMode,
           lookId: requireStyle ? newSelectedLookId : undefined,
           colorId: requireColor ? newSelectedColorId : undefined,
@@ -207,9 +210,10 @@ export default function ResultPage() {
         return;
       }
 
-      // Success: update resultImage and close modal
+      // Success: update resultImage and currentGenerationImage, keep originalImage intact
       const updated = saveSession({
         resultImage: data.resultImage,
+        currentGenerationImage: data.resultImage,
         provider: data.provider,
         mode: modalMode,
         ...(requireStyle ? { selectedLookId: newSelectedLookId } : {}),
